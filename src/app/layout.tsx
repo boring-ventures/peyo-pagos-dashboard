@@ -6,8 +6,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/providers/auth-provider";
 import { ThemeProvider } from "@/context/theme-context";
 
-const APP_NAME = "POSITIVE-NEXT";
-const APP_DESCRIPTION = "Your Mind's Best Friend";
+const APP_NAME = "PEYO Pagos";
+const APP_DESCRIPTION = "Dashboard de gestión de pagos empresariales";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 export const metadata: Metadata = {
@@ -37,12 +37,12 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: "/icon.png",
-    shortcut: "/favicon.ico",
-    apple: "/apple-icon.png",
+    icon: "/assets/favicon/favicon.ico",
+    shortcut: "/assets/favicon/favicon.ico",
+    apple: "/assets/favicon/apple-touch-icon.png",
     other: {
       rel: "apple-touch-icon",
-      url: "/apple-icon.png",
+      url: "/assets/favicon/apple-touch-icon.png",
     },
   },
 };
@@ -64,7 +64,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
         <ThemeProvider defaultTheme="system" storageKey="app-theme">
           <AuthProvider>
             <QueryProvider>

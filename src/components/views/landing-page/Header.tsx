@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X, Brain } from "lucide-react";
+import Image from "next/image";
+import { Menu, X } from "lucide-react";
 import { AuthHeader } from "./auth-header";
 
 export default function Header() {
@@ -13,29 +14,31 @@ export default function Header() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-4">
           <div className="flex items-center space-x-2">
-            <Brain className="h-8 w-8 text-primary" />
-            <Link href="/" className="text-2xl font-bold text-primary">
-              POSITIVE-Next
-            </Link>
+            <Image
+              src="/assets/logo.png"
+              alt="PEYO Logo"
+              width={100}
+              height={32}
+            />
           </div>
           <nav className="hidden md:flex space-x-8">
             <Link
               href="/#features"
               className="text-foreground hover:text-primary transition-colors"
             >
-              Features
+              Características
             </Link>
             <Link
               href="/#about"
               className="text-foreground hover:text-primary transition-colors"
             >
-              About
+              Acerca de
             </Link>
             <Link
               href="/#testimonials"
               className="text-foreground hover:text-primary transition-colors"
             >
-              Testimonials
+              Testimonios
             </Link>
           </nav>
           <div className="hidden md:flex">
@@ -59,19 +62,19 @@ export default function Header() {
               href="/#features"
               className="block px-3 py-2 text-foreground hover:text-primary transition-colors"
             >
-              Features
+              Características
             </Link>
             <Link
               href="/#about"
               className="block px-3 py-2 text-foreground hover:text-primary transition-colors"
             >
-              About
+              Acerca de
             </Link>
             <Link
               href="/#testimonials"
               className="block px-3 py-2 text-foreground hover:text-primary transition-colors"
             >
-              Testimonials
+              Testimonios
             </Link>
             <div className="px-3 py-2">
               <AuthHeader />
