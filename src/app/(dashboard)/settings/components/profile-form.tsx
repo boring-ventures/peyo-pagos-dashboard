@@ -17,7 +17,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { AvatarUpload } from "@/components/settings/avatar-upload";
 import { profileFormSchema } from "@/lib/validations/profile";
 import type { ProfileFormValues } from "@/lib/validations/profile";
 
@@ -27,7 +26,6 @@ export function ProfileForm() {
   const [pendingChanges, setPendingChanges] =
     useState<ProfileFormValues | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [newAvatarUrl, setNewAvatarUrl] = useState<string | null>(null);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -53,7 +51,6 @@ export function ProfileForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...pendingChanges,
-          avatarUrl: newAvatarUrl || profile.avatarUrl,
         }),
       });
 
@@ -82,21 +79,6 @@ export function ProfileForm() {
     <>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
-          {profile && (
-            <AvatarUpload
-              userId={profile.userId}
-              currentAvatarUrl={profile.avatarUrl || null}
-              onUploadComplete={(url) => setNewAvatarUrl(url)}
-              onUploadError={(error) => {
-                toast({
-                  title: "Error",
-                  description: error.message,
-                  variant: "destructive",
-                });
-              }}
-            />
-          )}
-
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField
               control={form.control}

@@ -94,7 +94,6 @@ export async function PATCH(
       data: {
         firstName: json.firstName || undefined,
         lastName: json.lastName || undefined,
-        avatarUrl: json.avatarUrl || undefined,
         active: json.active !== undefined ? json.active : undefined,
       },
     });

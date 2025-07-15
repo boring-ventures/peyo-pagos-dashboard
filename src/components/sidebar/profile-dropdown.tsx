@@ -58,10 +58,7 @@ export function ProfileDropdown() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-8 w-8 ring-2 ring-primary/10">
-            <AvatarImage
-              src={profile.avatarUrl || ""}
-              alt={displayName || user.email || "User"}
-            />
+            <AvatarImage src="" alt={displayName || user.email || "User"} />
             <AvatarFallback className="bg-primary/10">
               {getInitials()}
             </AvatarFallback>

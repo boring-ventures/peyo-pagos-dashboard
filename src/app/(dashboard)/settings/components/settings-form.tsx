@@ -25,7 +25,6 @@ import {
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useToast } from "@/components/ui/use-toast";
 import { LoadingScreen } from "@/components/ui/loading-screen";
-import { AvatarUpload } from "@/components/settings/avatar-upload";
 
 const settingsFormSchema = z.object({
   firstName: z
@@ -36,7 +35,6 @@ const settingsFormSchema = z.object({
     .string()
     .min(2, "El apellido debe tener al menos 2 caracteres")
     .optional(),
-  avatarUrl: z.string().url("URL inválida").optional().or(z.literal("")),
   active: z.boolean().default(true),
 });
 
@@ -47,14 +45,12 @@ export function SettingsForm() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState<string>("");
-  const [newAvatarUrl, setNewAvatarUrl] = useState<string | null>(null);
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsFormSchema),
     defaultValues: {
       firstName: profile?.firstName || "",
       lastName: profile?.lastName || "",
-      avatarUrl: profile?.avatarUrl || "",
       active: profile?.active ?? true,
     },
   });
@@ -65,7 +61,6 @@ export function SettingsForm() {
       form.reset({
         firstName: profile.firstName || "",
         lastName: profile.lastName || "",
-        avatarUrl: profile.avatarUrl || "",
         active: profile.active ?? true,
       });
     }
@@ -102,7 +97,6 @@ export function SettingsForm() {
             body: JSON.stringify({
               firstName: data.firstName,
               lastName: data.lastName,
-              avatarUrl: newAvatarUrl || data.avatarUrl,
               active: data.active,
             }),
           });
@@ -183,21 +177,6 @@ export function SettingsForm() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {profile && (
-                <AvatarUpload
-                  userId={profile.userId}
-                  currentAvatarUrl={profile.avatarUrl}
-                  onUploadComplete={(url) => setNewAvatarUrl(url)}
-                  onUploadError={(error) => {
-                    toast({
-                      title: "Error",
-                      description: error.message,
-                      variant: "destructive",
-                    });
-                  }}
-                />
-              )}
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
