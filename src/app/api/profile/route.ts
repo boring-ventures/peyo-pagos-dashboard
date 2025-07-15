@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     const data = await request.json();
     const { userId, firstName, lastName } = data;
 
-    // If userId is provided directly (during signup flow)
+    // If userId is provided directly (for admin user creation)
     if (userId) {
       // Check if profile already exists
       const existingProfile = await prisma.profile.findUnique({

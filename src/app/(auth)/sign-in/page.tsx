@@ -18,14 +18,7 @@ export default function SignInPage() {
             Iniciar Sesión
           </h1>
           <p className="text-sm text-muted-foreground">
-            Ingresa tu email y contraseña para <br />
-            acceder a tu cuenta.{" "}
-            <Link
-              href="/sign-up"
-              className="underline underline-offset-4 hover:text-primary"
-            >
-              ¿No tienes una cuenta?
-            </Link>
+            Ingresa tu email y contraseña para acceder a tu cuenta.
           </p>
         </div>
         <UserAuthForm />

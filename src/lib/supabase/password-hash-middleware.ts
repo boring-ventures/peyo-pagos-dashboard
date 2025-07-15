@@ -17,9 +17,12 @@ export const applyPasswordHashMiddleware = (supabase: SupabaseClient) => {
     const url = input instanceof Request ? input.url : input.toString();
     const isSupabaseAuthEndpoint =
       url.includes("/auth/v1") &&
-      (url.includes("/signup") ||
-        url.includes("/token") ||
-        url.includes("/user"));
+      (url.includes("/signin") ||
+        url.includes("/sign-in") ||
+        url.includes("/login") ||
+        url.includes("/password") ||
+        url.includes("/reset") ||
+        url.includes("/change"));
 
     // Check if this is a password-related operation
     const body = init?.body ? JSON.parse(init.body.toString()) : null;
@@ -42,3 +45,14 @@ export const applyPasswordHashMiddleware = (supabase: SupabaseClient) => {
 
   return supabase;
 };
+
+export function shouldApplyPasswordHashing(url: string): boolean {
+  return (
+    url.includes("/signin") ||
+    url.includes("/sign-in") ||
+    url.includes("/login") ||
+    url.includes("/password") ||
+    url.includes("/reset") ||
+    url.includes("/change")
+  );
+}

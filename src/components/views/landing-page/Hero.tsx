@@ -45,17 +45,11 @@ export default function Hero() {
               <BlurFade delay={0.4}>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                   <ShimmerButton className="px-8 py-4 text-lg">
-                    <Link href="/sign-up" className="flex items-center">
-                      Comenzar ahora
+                    <Link href="/sign-in" className="flex items-center">
+                      Iniciar Sesión
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </Link>
                   </ShimmerButton>
-                  <Link
-                    href="/sign-in"
-                    className="text-lg text-muted-foreground hover:text-primary transition-colors px-8 py-4"
-                  >
-                    Iniciar sesión →
-                  </Link>
                 </div>
               </BlurFade>
             </div>

@@ -53,58 +53,6 @@ export function useAuth() {
     }
   };
 
-  /**
-   * Sign up with email and password
-   * @param email User's email
-   * @param hashedPassword Password that has been hashed client-side
-   */
-  const signUp = async (email: string, hashedPassword: string) => {
-    try {
-      // Get the site URL from the environment or current location
-      const siteUrl =
-        process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-
-      // The password has already been hashed client-side
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password: hashedPassword,
-        options: {
-          emailRedirectTo: `${siteUrl}/auth/callback`,
-          data: {
-            email_confirmed: false,
-          },
-        },
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      // For email confirmation sign-ups, we won't get a session immediately
-      // The user needs to verify their email first
-      // Note: Profile creation is handled in two places:
-      // 1. On the client during signup (in sign-up-form.tsx) with user-provided data
-      // 2. As a fallback in auth/callback route if the client-side creation failed
-
-      return {
-        success: true,
-        user: data.user,
-        session: data.session,
-        confirmEmail: true,
-        error: null,
-      };
-    } catch (error) {
-      console.error("Sign up error:", error);
-      return {
-        success: false,
-        user: null,
-        session: null,
-        confirmEmail: false,
-        error,
-      };
-    }
-  };
-
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
@@ -118,7 +66,6 @@ export function useAuth() {
     session,
     loading,
     signIn,
-    signUp,
     signOut,
   };
 }

@@ -19,6 +19,47 @@ enum UserRole {
   SUPERADMIN
 }
 
+enum KYCStatus {
+  active
+  awaiting_questionnaire
+  awaiting_ubo
+  incomplete
+  not_started
+  offboarded
+  paused
+  rejected
+  under_review
+}
+
+enum ExpectedMonthlyPaymentsUSD {
+  zero_4999             // $0 - $4,999
+  five_thousand_9999    // $5,000 - $9,999
+  ten_thousand_49999    // $10,000 - $49,999
+  fifty_thousand_plus   // $50,000+ 
+}
+
+enum EmploymentStatus {
+  employed              // Employed
+  homemaker             // Homemaker
+  retired               // Retired
+  self_employed         // Self Employed
+  student               // Student
+  unemployed            // Unemployed
+}
+
+enum DocumentType {
+  drivers_license       // Driver's License
+  matriculate_id        // Matriculate ID
+  military_id           // Military ID
+  national_id           // National ID
+  passport              // Passport
+  permanent_residency_id // Permanent Residency ID
+  state_or_provisional_id // State or Provisional ID
+  visa                  // Visa
+}
+
+
+
 model Profile {
   id            String               @id @default(cuid())
   userId        String               @unique
@@ -28,7 +69,36 @@ model Profile {
   firstName     String?              @map("first_name")
   lastName      String?              @map("last_name")
   role          UserRole             @default(USER)
+  
+  // KYC Status
+  kycStatus     KYCStatus            @default(not_started) @map("kyc_status")
+  kycSubmittedAt DateTime?           @map("kyc_submitted_at")
+  kycApprovedAt DateTime?            @map("kyc_approved_at")
+  kycRejectedAt DateTime?            @map("kyc_rejected_at")
+  kycRejectionReason String?         @map("kyc_rejection_reason")
+  
+  // Personal Information
+  dateOfBirth   DateTime?            @map("date_of_birth")
+  
+  // Employment and Financial Information
+  mostRecentOccupation String?       @map("most_recent_occupation")
+  employmentStatus EmploymentStatus? @map("employment_status")
+  expectedMonthlyPaymentsUsd ExpectedMonthlyPaymentsUSD? @map("expected_monthly_payments_usd")
+  
+  // Address Information
+  issuingCountry String?             @map("issuing_country") // ISO 3166-1 three-character country code
+  province      String?              // Provincia/Estado
+  city          String?              // Ciudad
+  address       String?              // Dirección
+  postalCode    String?              @map("postal_code")
+  
+  // Document Uploads
+  documentType     DocumentType?     @map("document_type")
+  idFrontImageUrl  String?           @map("id_front_image_url")
+  idBackImageUrl   String?           @map("id_back_image_url")
+  selfieImageUrl   String?           @map("selfie_image_url")
 
   @@index([userId])
+  @@index([kycStatus])
   @@map("profiles")
 }
