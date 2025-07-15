@@ -22,7 +22,6 @@ enum UserRole {
 model Profile {
   id            String               @id @default(cuid())
   userId        String               @unique
-  avatarUrl     String?
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
   active        Boolean              @default(true)
