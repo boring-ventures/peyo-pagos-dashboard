@@ -13,7 +13,7 @@ export function TeamSwitcher() {
         <SidebarMenuButton size="lg" className="pointer-events-none">
           <div className="flex aspect-square size-8 items-center justify-center rounded-lg">
             <Image
-              src="/assets/logo.png"
+              src="/assets/icon.png"
               alt="PEYO"
               width={32}
               height={32}
@@ -21,9 +21,7 @@ export function TeamSwitcher() {
             />
           </div>
           <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate ">
-              PEYO Pagos
-            </span>
+            <span className="truncate font-bold">PEYO Pagos</span>
             <span className="truncate text-xs text-muted-foreground"></span>
           </div>
         </SidebarMenuButton>
