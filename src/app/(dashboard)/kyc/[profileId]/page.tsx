@@ -463,41 +463,76 @@ export default function KYCProfileDetailsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                                 {kycDetails?.documents && kycDetails.documents.length > 0 ? (
-                   <div className="space-y-4">
-                     {kycDetails.documents.map((doc, index) => (
-                       <div
-                         key={index}
-                         className="border rounded-lg p-4 space-y-2"
-                       >
-                         <div className="flex items-center justify-between">
-                           <p className="font-medium">
-                             {doc.description || `Documento ${index + 1}`}
-                           </p>
-                           <Badge variant="outline">
-                             {doc.fileUrl ? "Subido" : "Pendiente"}
-                           </Badge>
-                         </div>
-                         <p className="text-sm text-muted-foreground">
-                           Subido: {formatDate(doc.createdAt)}
-                         </p>
-                         {doc.purposes && doc.purposes.length > 0 && (
-                           <div className="flex flex-wrap gap-1">
-                             {doc.purposes.map((purpose, purposeIndex) => (
-                               <Badge key={purposeIndex} variant="secondary" className="text-xs">
-                                 {purpose.replace(/_/g, ' ')}
-                               </Badge>
-                             ))}
-                           </div>
-                         )}
-                         {doc.fileSize && (
-                           <p className="text-xs text-muted-foreground">
-                             Tamaño: {Math.round(doc.fileSize / 1024)} KB
-                           </p>
-                         )}
-                       </div>
-                     ))}
-                   </div>
+                {kycDetails?.documents && kycDetails.documents.length > 0 ? (
+                  <div className="space-y-4">
+                    {kycDetails.documents.map((doc, index) => (
+                      <div
+                        key={index}
+                        className="border rounded-lg p-4 space-y-2"
+                      >
+                        <div className="flex items-center justify-between">
+                          <p className="font-medium">
+                            {doc.description || `Documento ${index + 1}`}
+                          </p>
+                          <Badge variant="outline">
+                            {doc.fileUrl ? "Subido" : "Pendiente"}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Subido: {formatDate(doc.createdAt)}
+                        </p>
+                        {doc.purposes && doc.purposes.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {doc.purposes.map((purpose, purposeIndex) => (
+                              <Badge
+                                key={purposeIndex}
+                                variant="secondary"
+                                className="text-xs"
+                              >
+                                {purpose.replace(/_/g, " ")}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                        {doc.fileSize && (
+                          <p className="text-xs text-muted-foreground">
+                            Tamaño: {Math.round(doc.fileSize / 1024)} KB
+                          </p>
+                        )}
+
+                        {/* Mostrar imagen del documento si está disponible */}
+                        {doc.fileUrl && (
+                          <div className="mt-3 space-y-2">
+                            <p className="text-sm font-medium">Archivo:</p>
+                            <div className="border rounded-lg overflow-hidden max-w-md">
+                              <img
+                                src={doc.fileUrl}
+                                alt={doc.description || "Documento"}
+                                className="w-full h-64 object-cover"
+                                onError={(e) => {
+                                  // Si falla cargar la imagen, mostrar un placeholder
+                                  e.currentTarget.src =
+                                    "/placeholder-document.png";
+                                }}
+                              />
+                            </div>
+                            <div className="flex items-center gap-2 mt-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                  window.open(doc.fileUrl, "_blank")
+                                }
+                              >
+                                <FileText className="h-4 w-4 mr-1" />
+                                Ver archivo
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 ) : (
                   <div className="text-center py-8">
                     <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -528,34 +563,81 @@ export default function KYCProfileDetailsPage() {
                         key={index}
                         className="border rounded-lg p-4 space-y-2"
                       >
-                                                 <div className="grid grid-cols-2 gap-4">
-                           <div className="space-y-2">
-                             <p className="text-sm font-medium">Tipo:</p>
-                             <p className="text-sm text-muted-foreground">
-                               {info.type}
-                             </p>
-                           </div>
-                           <div className="space-y-2">
-                             <p className="text-sm font-medium">Número:</p>
-                             <p className="text-sm text-muted-foreground">
-                               {info.number || "No especificado"}
-                             </p>
-                           </div>
-                           <div className="space-y-2">
-                             <p className="text-sm font-medium">País emisor:</p>
-                             <p className="text-sm text-muted-foreground">
-                               {info.issuingCountry}
-                             </p>
-                           </div>
-                           {info.expiration && (
-                             <div className="space-y-2">
-                               <p className="text-sm font-medium">Expiración:</p>
-                               <p className="text-sm text-muted-foreground">
-                                 {formatDate(info.expiration)}
-                               </p>
-                             </div>
-                           )}
-                         </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <p className="text-sm font-medium">Tipo:</p>
+                            <p className="text-sm text-muted-foreground">
+                              {info.type}
+                            </p>
+                          </div>
+                          <div className="space-y-2">
+                            <p className="text-sm font-medium">Número:</p>
+                            <p className="text-sm text-muted-foreground">
+                              {info.number || "No especificado"}
+                            </p>
+                          </div>
+                          <div className="space-y-2">
+                            <p className="text-sm font-medium">País emisor:</p>
+                            <p className="text-sm text-muted-foreground">
+                              {info.issuingCountry}
+                            </p>
+                          </div>
+                          {info.expiration && (
+                            <div className="space-y-2">
+                              <p className="text-sm font-medium">Expiración:</p>
+                              <p className="text-sm text-muted-foreground">
+                                {formatDate(info.expiration)}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Sección de imágenes de documentos */}
+                        {(info.imageFront || info.imageBack) && (
+                          <div className="mt-4 space-y-3">
+                            <p className="text-sm font-medium">
+                              Imágenes del documento:
+                            </p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {info.imageFront && (
+                                <div className="space-y-2">
+                                  <p className="text-xs text-muted-foreground">
+                                    Frente:
+                                  </p>
+                                  <div className="border rounded-lg overflow-hidden">
+                                    <img
+                                      src={info.imageFront}
+                                      alt="Documento - Frente"
+                                      className="w-full h-48 object-cover"
+                                      onError={(e) => {
+                                        e.currentTarget.src =
+                                          "/placeholder-document.png";
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                              {info.imageBack && (
+                                <div className="space-y-2">
+                                  <p className="text-xs text-muted-foreground">
+                                    Reverso:
+                                  </p>
+                                  <div className="border rounded-lg overflow-hidden">
+                                    <img
+                                      src={info.imageBack}
+                                      alt="Documento - Reverso"
+                                      className="w-full h-48 object-cover"
+                                      onError={(e) => {
+                                        e.currentTarget.src =
+                                          "/placeholder-document.png";
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                         <p className="text-sm text-muted-foreground">
                           Creado: {formatDate(info.createdAt)}
                         </p>
