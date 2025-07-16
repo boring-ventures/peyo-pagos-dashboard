@@ -10,3 +10,7 @@ DIRECT_URL="postgresql://postgres.[YOUR-PROJECT-REF]:[YOUR-PASSWORD]@aws-0-[YOUR
 
 # Storage
 NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET=avatars 
+
+# Admin Scripts (for KYC seeding and cleanup)
+# This is the service_role secret key - NEVER expose this publicly
+SUPABASE_SERVICE_KEY=your-service-role-secret-key

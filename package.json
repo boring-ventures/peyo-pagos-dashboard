@@ -3,10 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
     "build": "next build",
+    "dev": "next dev --turbopack",
+    "lint": "next lint",
     "start": "next start",
-    "lint": "next lint"
+    "seed:kyc": "tsx scripts/seed-kyc-data.ts",
+    "clean:kyc": "tsx scripts/clean-kyc-data.ts",
+    "check:kyc": "tsx scripts/check-setup.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^4.1.0",
