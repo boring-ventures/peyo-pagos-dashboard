@@ -8,6 +8,7 @@
     "lint": "next lint",
     "start": "next start",
     "seed:kyc": "tsx scripts/seed-kyc-data.ts",
+    "seed:rejection-scenarios": "tsx scripts/seed-kyc-rejection-scenarios.ts",
     "clean:kyc": "tsx scripts/clean-kyc-data.ts",
     "check:kyc": "tsx scripts/check-setup.ts"
   },

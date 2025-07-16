@@ -32,12 +32,9 @@ if (!bridgeApiKey) {
 
 const prisma = new PrismaClient();
 
-// Crear clientes de Supabase
-const supabaseAdmin = supabaseServiceKey
-  ? createClient(supabaseUrl, supabaseServiceKey)
-  : null;
-
+// Crear clientes de Supabase (anon key es service role)
 const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+const supabaseAdmin = supabaseClient; // anon key es service role
 
 // Mapeo de status Bridge API a nuestro enum KYCStatus
 function mapBridgeStatusToKYCStatus(bridgeStatus: string): string {

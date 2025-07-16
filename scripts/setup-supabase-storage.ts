@@ -17,10 +17,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
   process.exit(1);
 }
 
-// Crear cliente de Supabase con service key si está disponible
-const supabase = supabaseServiceKey
-  ? createClient(supabaseUrl, supabaseServiceKey)
-  : createClient(supabaseUrl, supabaseAnonKey);
+// Crear cliente de Supabase con service key (usando anon key que es service role)
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 async function setupStorage() {
   console.log("🚀 Configurando Supabase Storage...\n");
@@ -33,12 +31,8 @@ async function setupStorage() {
 
     if (listError) {
       console.error("❌ Error listando buckets:", listError.message);
-      if (!supabaseServiceKey) {
-        console.error(
-          "💡 Necesitas SUPABASE_SERVICE_KEY para gestionar buckets"
-        );
-        process.exit(1);
-      }
+      console.error("💡 Error de permisos en Supabase");
+      process.exit(1);
       return;
     }
 
@@ -47,22 +41,25 @@ async function setupStorage() {
       buckets?.map((b) => b.name).join(", ") || "ninguno"
     );
 
-    // 2. Verificar si existe el bucket 'avatars'
-    const avatarsBucket = buckets?.find((bucket) => bucket.name === "avatars");
+    // 2. Verificar si existe el bucket 'documents'
+    const documentsBucket = buckets?.find(
+      (bucket) => bucket.name === "documents"
+    );
 
-    if (avatarsBucket) {
-      console.log("✅ Bucket 'avatars' ya existe");
+    if (documentsBucket) {
+      console.log("✅ Bucket 'documents' ya existe");
     } else {
-      console.log("🔧 Creando bucket 'avatars'...");
+      console.log("🔧 Creando bucket 'documents'...");
 
       const { data: createData, error: createError } =
-        await supabase.storage.createBucket("avatars", {
+        await supabase.storage.createBucket("documents", {
           public: true,
           allowedMimeTypes: [
             "image/png",
             "image/jpeg",
             "image/jpg",
             "image/webp",
+            "application/pdf",
           ],
           fileSizeLimit: 26214400, // 25MB
         });
@@ -70,16 +67,11 @@ async function setupStorage() {
       if (createError) {
         console.error("❌ Error creando bucket:", createError.message);
 
-        if (!supabaseServiceKey) {
-          console.error("💡 Necesitas SUPABASE_SERVICE_KEY para crear buckets");
-          console.log(
-            "🔄 Intentando usar bucket existente o crear uno alternativo..."
-          );
-          return false;
-        }
+        console.error("💡 Error de permisos al crear bucket");
+        return false;
         return false;
       } else {
-        console.log("✅ Bucket 'avatars' creado exitosamente");
+        console.log("✅ Bucket 'documents' creado exitosamente");
       }
     }
 
@@ -88,7 +80,7 @@ async function setupStorage() {
 
     // Intentar listar objetos en el bucket
     const { data: objects, error: objectsError } = await supabase.storage
-      .from("avatars")
+      .from("documents")
       .list("", { limit: 1 });
 
     if (objectsError) {
@@ -97,7 +89,7 @@ async function setupStorage() {
         objectsError.message
       );
     } else {
-      console.log("✅ Acceso al bucket 'avatars' verificado");
+      console.log("✅ Acceso al bucket 'documents' verificado");
     }
 
     // 4. Probar subida de archivo de prueba
@@ -109,7 +101,7 @@ async function setupStorage() {
     const testPath = `test-uploads/test-${Date.now()}.png`;
 
     const { error: uploadError } = await supabase.storage
-      .from("avatars")
+      .from("documents")
       .upload(testPath, testImageBuffer, {
         contentType: "image/png",
         cacheControl: "3600",
@@ -127,7 +119,7 @@ async function setupStorage() {
 
       // Limpiar archivo de prueba
       const { error: deleteError } = await supabase.storage
-        .from("avatars")
+        .from("documents")
         .remove([testPath]);
 
       if (deleteError) {
@@ -139,7 +131,7 @@ async function setupStorage() {
     }
 
     console.log("\n🎉 Configuración de Supabase Storage completada!");
-    console.log("✅ El bucket 'avatars' está listo para usar");
+    console.log("✅ El bucket 'documents' está listo para usar");
 
     return true;
   } catch (error) {

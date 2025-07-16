@@ -5,6 +5,7 @@ const nextConfig = {
       // Add your Supabase project domain
       "swfgvfhpmicwptupjyko.supabase.co",
       "xqakfzhkeiongvzgbhji.supabase.co",
+      "hyxxamyqorfgzwbbiicx.supabase.co",
     ],
   },
   output: "standalone",

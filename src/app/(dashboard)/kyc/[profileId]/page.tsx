@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -491,9 +492,11 @@ export default function KYCProfileDetailsPage() {
                           <div className="mt-3 space-y-2">
                             <p className="text-sm font-medium">Archivo:</p>
                             <div className="border rounded-lg overflow-hidden max-w-md">
-                              <img
+                              <Image
                                 src={doc.fileUrl}
                                 alt={doc.description || "Documento"}
+                                width={400}
+                                height={256}
                                 className="w-full h-64 object-cover"
                                 onError={(e) => {
                                   // Si falla cargar la imagen, mostrar un placeholder
@@ -506,9 +509,11 @@ export default function KYCProfileDetailsPage() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() =>
-                                  window.open(doc.fileUrl, "_blank")
-                                }
+                                onClick={() => {
+                                  if (doc.fileUrl) {
+                                    window.open(doc.fileUrl, "_blank");
+                                  }
+                                }}
                               >
                                 <FileText className="h-4 w-4 mr-1" />
                                 Ver archivo
@@ -591,9 +596,11 @@ export default function KYCProfileDetailsPage() {
                                     Frente:
                                   </p>
                                   <div className="border rounded-lg overflow-hidden">
-                                    <img
+                                    <Image
                                       src={info.imageFront}
                                       alt="Documento - Frente"
+                                      width={300}
+                                      height={192}
                                       className="w-full h-48 object-cover"
                                       onError={(e) => {
                                         e.currentTarget.src =
@@ -609,9 +616,11 @@ export default function KYCProfileDetailsPage() {
                                     Reverso:
                                   </p>
                                   <div className="border rounded-lg overflow-hidden">
-                                    <img
+                                    <Image
                                       src={info.imageBack}
                                       alt="Documento - Reverso"
+                                      width={300}
+                                      height={192}
                                       className="w-full h-48 object-cover"
                                       onError={(e) => {
                                         e.currentTarget.src =

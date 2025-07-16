@@ -19,24 +19,14 @@ if (!supabaseUrl) {
 
 const prisma = new PrismaClient();
 
-// Inicializar Supabase solo si tenemos service key para eliminar archivos
-let supabase: any = null;
-if (supabaseServiceKey) {
-  supabase = createClient(supabaseUrl, supabaseServiceKey);
-}
+// Inicializar Supabase (anon key es service role)
+const supabase = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
 // Email protegido que NO se debe eliminar
 const PROTECTED_EMAIL = "apps@lednationllc.com";
 
 // Función para eliminar archivos de un perfil en Supabase Storage
 async function deleteProfileImages(profileId: string): Promise<void> {
-  if (!supabase) {
-    console.log(
-      `⚠️  Supabase Service Key no disponible - saltando eliminación de imágenes`
-    );
-    return;
-  }
-
   try {
     console.log(
       `🗄️  Eliminando imágenes de Supabase Storage para perfil: ${profileId}`
@@ -44,7 +34,7 @@ async function deleteProfileImages(profileId: string): Promise<void> {
 
     // Listar archivos del perfil en el bucket
     const { data: files, error: listError } = await supabase.storage
-      .from("avatars")
+      .from("documents")
       .list(`kyc-documents/${profileId}`);
 
     if (listError) {
@@ -59,10 +49,10 @@ async function deleteProfileImages(profileId: string): Promise<void> {
 
     // Eliminar cada archivo
     const filePaths = files.map(
-      (file) => `kyc-documents/${profileId}/${file.name}`
+      (file: { name: string }) => `kyc-documents/${profileId}/${file.name}`
     );
     const { error: deleteError } = await supabase.storage
-      .from("avatars")
+      .from("documents")
       .remove(filePaths);
 
     if (deleteError) {
@@ -182,12 +172,24 @@ async function cleanupOrphanedData() {
   console.log("🔍 Buscando datos huérfanos...");
 
   try {
-    // Buscar perfiles KYC sin perfil padre (excepto el protegido)
-    const orphanedKycProfiles = await prisma.kYCProfile.findMany({
-      where: {
-        profile: null,
+    // Buscar perfiles KYC que referencian profileIds que no existen
+    const allKycProfiles = await prisma.kYCProfile.findMany({
+      select: {
+        id: true,
+        profileId: true,
       },
     });
+    
+    const allProfileIds = await prisma.profile.findMany({
+      select: {
+        id: true,
+      },
+    });
+    
+    const existingProfileIds = new Set(allProfileIds.map(p => p.id));
+    const orphanedKycProfiles = allKycProfiles.filter(
+      kyc => !existingProfileIds.has(kyc.profileId)
+    );
 
     if (orphanedKycProfiles.length > 0) {
       console.log(
@@ -200,86 +202,11 @@ async function cleanupOrphanedData() {
       }
     }
 
-    // Buscar direcciones huérfanas
-    const orphanedAddresses = await prisma.address.findMany({
-      where: {
-        kycProfile: null,
-      },
-    });
+    // Nota: Las verificaciones de datos huérfanos han sido removidas ya que
+    // las relaciones onDelete: Cascade se encargan automáticamente de limpiar
+    // los datos relacionados cuando se elimina un KYCProfile.
 
-    if (orphanedAddresses.length > 0) {
-      console.log(
-        `🧹 Eliminando ${orphanedAddresses.length} direcciones huérfanas...`
-      );
-      await prisma.address.deleteMany({
-        where: {
-          id: { in: orphanedAddresses.map((a) => a.id) },
-        },
-      });
-    }
-
-    // Buscar información de identificación huérfana
-    const orphanedIdentifyingInfo =
-      await prisma.identifyingInformation.findMany({
-        where: {
-          kycProfile: null,
-        },
-      });
-
-    if (orphanedIdentifyingInfo.length > 0) {
-      console.log(
-        `🧹 Eliminando ${orphanedIdentifyingInfo.length} información de identificación huérfana...`
-      );
-      await prisma.identifyingInformation.deleteMany({
-        where: {
-          id: { in: orphanedIdentifyingInfo.map((i) => i.id) },
-        },
-      });
-    }
-
-    // Buscar documentos huérfanos
-    const orphanedDocuments = await prisma.document.findMany({
-      where: {
-        kycProfile: null,
-      },
-    });
-
-    if (orphanedDocuments.length > 0) {
-      console.log(
-        `🧹 Eliminando ${orphanedDocuments.length} documentos huérfanos...`
-      );
-      await prisma.document.deleteMany({
-        where: {
-          id: { in: orphanedDocuments.map((d) => d.id) },
-        },
-      });
-    }
-
-    // Buscar razones de rechazo huérfanas
-    const orphanedRejectionReasons = await prisma.rejectionReason.findMany({
-      where: {
-        kycProfile: null,
-      },
-    });
-
-    if (orphanedRejectionReasons.length > 0) {
-      console.log(
-        `🧹 Eliminando ${orphanedRejectionReasons.length} razones de rechazo huérfanas...`
-      );
-      await prisma.rejectionReason.deleteMany({
-        where: {
-          id: { in: orphanedRejectionReasons.map((r) => r.id) },
-        },
-      });
-    }
-
-    if (
-      orphanedKycProfiles.length === 0 &&
-      orphanedAddresses.length === 0 &&
-      orphanedIdentifyingInfo.length === 0 &&
-      orphanedDocuments.length === 0 &&
-      orphanedRejectionReasons.length === 0
-    ) {
+    if (orphanedKycProfiles.length === 0) {
       console.log("✅ No se encontraron datos huérfanos");
     }
   } catch (error) {

@@ -18,7 +18,6 @@ import {
   FileText,
   Calendar,
   Shield,
-  Building,
   AlertCircle,
   CheckCircle2,
   XCircle,
