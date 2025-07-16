@@ -31,11 +31,16 @@ enum KYCStatus {
   under_review
 }
 
+enum CustomerType {
+  individual
+  business
+}
+
 enum ExpectedMonthlyPaymentsUSD {
   zero_4999             // $0 - $4,999
   five_thousand_9999    // $5,000 - $9,999
   ten_thousand_49999    // $10,000 - $49,999
-  fifty_thousand_plus   // $50,000+ 
+  fifty_thousand_plus   // $50,000+
 }
 
 enum EmploymentStatus {
@@ -45,6 +50,30 @@ enum EmploymentStatus {
   self_employed         // Self Employed
   student               // Student
   unemployed            // Unemployed
+}
+
+enum AccountPurpose {
+  charitable_donations
+  ecommerce_retail_payments
+  investment_purposes
+  operating_a_company
+  other
+  payments_to_friends_or_family_abroad
+  personal_or_living_expenses
+  protect_wealth
+  purchase_goods_and_services
+  receive_payment_for_freelancing
+  receive_salary
+}
+
+enum SourceOfFunds {
+  salary
+  business_income
+  investment_returns
+  inheritance
+  government_benefits
+  loans
+  other
 }
 
 enum DocumentType {
@@ -58,47 +87,176 @@ enum DocumentType {
   visa                  // Visa
 }
 
+enum DocumentPurpose {
+  // Note: This enum is used as an array of strings in the application
+  proof_of_account_purpose
+  proof_of_address
+  proof_of_individual_name_change
+  proof_of_relationship
+  proof_of_source_of_funds
+  proof_of_source_of_wealth
+  proof_of_tax_identification
+  other
+}
 
+enum EndorsementType {
+  base
+  sepa
+  spei
+}
 
 model Profile {
   id            String               @id @default(cuid())
   userId        String               @unique
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
-  active        Boolean              @default(true)
-  firstName     String?              @map("first_name")
-  lastName      String?              @map("last_name")
+  
+  // User Role
   role          UserRole             @default(USER)
   
-  // KYC Status
+  // Relations
+  kycProfile    KYCProfile?          // One-to-one relationship for KYC data
+  
+  @@index([userId])
+  @@map("profiles")
+}
+
+model KYCProfile {
+  id            String               @id @default(cuid())
+  profileId     String               @unique @map("profile_id")
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  active        Boolean              @default(true)
+  
+  // Bridge.xyz Integration
+  bridgeCustomerId String?           @unique @map("bridge_customer_id")
+  customerType     CustomerType      @default(individual) @map("customer_type")
+  
+  // Basic Information (Required for all users)
+  firstName     String?              @map("first_name") // string length between 2 and 1024
+  middleName    String?              @map("middle_name") // string length between 2 and 1024
+  lastName      String?              @map("last_name") // string length between 2 and 1024
+  email         String?              @unique // string length between 2 and 1024
+  phone         String?              // Format: +12223334444 // string length between 2 and 1024
+  birthDate   DateTime?            @map("birth_date") // string between 10 and 10 characters in format yyyy-mm-dd, must be at least 18 years old
+  nationality   String?              // ISO 3166-1 three-character country code // string length between 2 and 1024
+  
+  // KYC Status and Tracking
   kycStatus     KYCStatus            @default(not_started) @map("kyc_status")
   kycSubmittedAt DateTime?           @map("kyc_submitted_at")
   kycApprovedAt DateTime?            @map("kyc_approved_at")
   kycRejectedAt DateTime?            @map("kyc_rejected_at")
   kycRejectionReason String?         @map("kyc_rejection_reason")
+  signedAgreementId String?          @map("signed_agreement_id") // this is only for bridge's production environment
   
-  // Personal Information
-  dateOfBirth   DateTime?            @map("date_of_birth")
+  // Verification Timestamps
+  verifiedSelfieAt DateTime?         @map("verified_selfie_at")
+  completedCustomerSafetyCheckAt DateTime? @map("completed_customer_safety_check_at")
   
-  // Employment and Financial Information
-  mostRecentOccupation String?       @map("most_recent_occupation")
+  // High Risk Fields (Required for high risk customers)
+  accountPurpose AccountPurpose?     @map("account_purpose")
+  accountPurposeOther String?        @map("account_purpose_other")
   employmentStatus EmploymentStatus? @map("employment_status")
   expectedMonthlyPaymentsUsd ExpectedMonthlyPaymentsUSD? @map("expected_monthly_payments_usd")
+  mostRecentOccupation String?       @map("most_recent_occupation")
+  // actingAsIntermediary Boolean?      @map("acting_as_intermediary") // assume false always for now
+  // sourceOfFunds SourceOfFunds?       @map("source_of_funds") // assume unnecessary for now, as we wont provide services for restricted countries
   
-  // Address Information
-  issuingCountry String?             @map("issuing_country") // ISO 3166-1 three-character country code
-  province      String?              // Provincia/Estado
-  city          String?              // Ciudad
-  address       String?              // Dirección
-  postalCode    String?              @map("postal_code")
+  // Relations
+  profile       Profile              @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  address       Address?             // One-to-one relationship
+  identifyingInfo IdentifyingInformation[]
+  documents     Document[]
+  // endorsements  Endorsement[]
   
-  // Document Uploads
-  documentType     DocumentType?     @map("document_type")
-  idFrontImageUrl  String?           @map("id_front_image_url")
-  idBackImageUrl   String?           @map("id_back_image_url")
-  selfieImageUrl   String?           @map("selfie_image_url")
-
-  @@index([userId])
   @@index([kycStatus])
-  @@map("profiles")
+  @@index([bridgeCustomerId])
+  @@map("kyc_profiles")
 }
+
+model Address {
+  id          String   @id @default(cuid())
+  kycProfileId String   @unique @map("kyc_profile_id") // Changed to unique for one-to-one
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Required Address Fields
+  streetLine1   String   @map("street_line_1") // string length between 2 and 1024
+  city          String   // string length between 2 and 1024
+  country       String   // ISO 3166-1 three-character country code // string length between 2 and 1024
+
+  // Optional Address Fields
+  streetLine2   String?  @map("street_line_2") // string length between 2 and 1024
+  subdivision   String?  // ISO 3166-2 subdivision code (for US addresses) // string length between 2 and 1024
+  postalCode    String?  @map("postal_code") // string length between 2 and 1024
+  
+  // Relations
+  kycProfile KYCProfile @relation(fields: [kycProfileId], references: [id], onDelete: Cascade)
+  
+  @@map("addresses")
+}
+
+model Document {
+  id          String   @id @default(cuid())
+  kycProfileId String   @map("kyc_profile_id")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Document Information
+  purposes    DocumentPurpose[] // Array of purposes
+  fileUrl     String?           @map("file_url")        // Base64 encoded file or URL, max size 24 MB, valid types: .pdf, .jpeg, .jpg, .png, .heic, .tif
+  fileSize    Int?              @map("file_size")       // Size in bytes
+  description String?
+  
+  // Relations
+  kycProfile KYCProfile @relation(fields: [kycProfileId], references: [id], onDelete: Cascade)
+  
+  @@index([kycProfileId])
+  @@map("documents")
+}
+
+model IdentifyingInformation {
+  id          String   @id @default(cuid())
+  kycProfileId String   @map("kyc_profile_id")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Document Information
+  type          DocumentType @map("document_type")
+  issuingCountry String      @map("issuing_country") // ISO 3166-1 three-character country code
+  number        String?      // Document number
+  description   String?      // Description when type is "other"
+  expiration    DateTime?    // Expiration date (yyyy-mm-dd)
+  
+  // Document Images
+  imageFront    String?      @map("image_front")     // Base64 encoded image, max 24 MB, min 200x200px, valid types: .pdf, .jpeg, .jpg, .png, .heic, .tif
+  imageBack     String?      @map("image_back")      // Base64 encoded image, max 24 MB, min 200x200px, valid types: .pdf, .jpeg, .jpg, .png, .heic, .tif
+  
+  // Relations
+  kycProfile KYCProfile @relation(fields: [kycProfileId], references: [id], onDelete: Cascade)
+  
+  @@index([kycProfileId])
+  @@index([type])
+  @@map("identifying_information")
+}
+
+// TODO: Understand how to handle endorsements and if necessary, add them back in
+// model Endorsement {
+//   id          String   @id @default(cuid())
+//   profileId   String   @map("profile_id")
+//   createdAt   DateTime @default(now())
+//   updatedAt   DateTime @updatedAt
+  
+//   // Endorsement Information
+//   endorsementType EndorsementType @map("endorsement_type") // e.g., "base", "sepa" // change to enum with values base, sepa, spei
+//   endorsementType String @map("endorsement_type") // e.g., "base", "sepa" // change to enum with values base, sepa, spei
+
+//   status          String @default("pending")       // pending, approved, rejected
+  
+//   // Relations
+//   profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  
+//   @@index([profileId])
+//   @@map("endorsements")
+// }
+
