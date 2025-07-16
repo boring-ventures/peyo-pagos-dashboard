@@ -4,6 +4,25 @@
 // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
+// ===========================================
+// USER FLOWS DOCUMENTATION
+// ===========================================
+//
+// 1. SUPERADMIN FLOW:
+//    - Profile only (minimal data: userId, email, status, role)
+//    - No KYCProfile needed
+//    - Direct dashboard access
+//    - No Bridge Protocol integration
+//
+// 2. REGULAR USER FLOW:
+//    - Profile (basic: userId, email, status, role)  
+//    - KYCProfile (full personal data for Bridge Protocol)
+//    - Bridge Protocol verification required
+//    - Customer ID assigned if approved
+//    - Detailed tracking of verification status
+//
+// ===========================================
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -111,21 +130,41 @@ enum EndorsementType {
   spei
 }
 
+enum CapabilityStatus {
+  pending
+  active
+  inactive
+  rejected
+}
+
+enum EndorsementStatus {
+  incomplete
+  approved
+  revoked
+}
+
 model Profile {
   id            String               @id @default(cuid())
   userId        String               @unique
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
 
-  // User Status and Role
+  // Basic Information (for all users)
+  email         String?              @unique // From Supabase auth
+  firstName     String?              @map("first_name") // Basic name for all users
+  lastName      String?              @map("last_name")  // Basic name for all users
+  
+  // User Management
   status        UserStatus           @default(active)
   role          UserRole             @default(USER)
   
   // Relations
-  kycProfile    KYCProfile?          // One-to-one relationship for KYC data
+  kycProfile    KYCProfile?          // Only for USER role - Bridge Protocol integration
   
   @@index([userId])
   @@index([status])
+  @@index([role])
+  @@index([email])
   @@map("profiles")
 }
 
@@ -134,22 +173,22 @@ model KYCProfile {
   profileId     String               @unique @map("profile_id")
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
-  status        UserStatus           @default(active)
   
   // Bridge.xyz Integration
   bridgeCustomerId String?           @unique @map("bridge_customer_id")
   customerType     CustomerType      @default(individual) @map("customer_type")
   
-  // Basic Information (Required for all users)
+  // Personal Information (Required for Bridge Protocol)
   firstName     String?              @map("first_name") // string length between 2 and 1024
   middleName    String?              @map("middle_name") // string length between 2 and 1024
   lastName      String?              @map("last_name") // string length between 2 and 1024
   email         String?              @unique // string length between 2 and 1024
   phone         String?              // Format: +12223334444 // string length between 2 and 1024
-  birthDate   DateTime?            @map("birth_date") // string between 10 and 10 characters in format yyyy-mm-dd, must be at least 18 years old
+  birthDate     DateTime?            @map("birth_date") // string between 10 and 10 characters in format yyyy-mm-dd, must be at least 18 years old
   nationality   String?              // ISO 3166-1 three-character country code // string length between 2 and 1024
   
-  // KYC Status and Tracking
+  // Bridge Protocol Verification Status
+  bridgeVerificationStatus String?   @default("not_started") @map("bridge_verification_status") // not_started, pending, approved, rejected, under_review
   kycStatus     KYCStatus            @default(not_started) @map("kyc_status")
   kycSubmittedAt DateTime?           @map("kyc_submitted_at")
   kycApprovedAt DateTime?            @map("kyc_approved_at")
@@ -170,15 +209,26 @@ model KYCProfile {
   // actingAsIntermediary Boolean?      @map("acting_as_intermediary") // assume false always for now
   // sourceOfFunds SourceOfFunds?       @map("source_of_funds") // assume unnecessary for now, as we wont provide services for restricted countries
   
+  // Bridge Protocol Response Fields
+  payinCrypto CapabilityStatus?      @default(pending) @map("payin_crypto")
+  payoutCrypto CapabilityStatus?     @default(pending) @map("payout_crypto")
+  payinFiat CapabilityStatus?        @default(pending) @map("payin_fiat")
+  payoutFiat CapabilityStatus?       @default(pending) @map("payout_fiat")
+  futureRequirementsDue String[]     @default([]) @map("future_requirements_due")
+  requirementsDue String[]           @default([]) @map("requirements_due")
+  hasAcceptedTermsOfService Boolean? @default(false) @map("has_accepted_terms_of_service")
+  
   // Relations
   profile       Profile              @relation(fields: [profileId], references: [id], onDelete: Cascade)
   address       Address?             // One-to-one relationship
   identifyingInfo IdentifyingInformation[]
   documents     Document[]
+  rejectionReasons RejectionReason[]
   // endorsements  Endorsement[]
   
   @@index([kycStatus])
   @@index([bridgeCustomerId])
+  @@index([bridgeVerificationStatus])
   @@map("kyc_profiles")
 }
 
@@ -248,23 +298,41 @@ model IdentifyingInformation {
   @@map("identifying_information")
 }
 
+model RejectionReason {
+  id          String   @id @default(cuid())
+  kycProfileId String   @map("kyc_profile_id")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Bridge Protocol Response Fields
+  developerReason String  @map("developer_reason")
+  reason         String
+  bridgeCreatedAt DateTime? @map("bridge_created_at")
+  
+  // Relations
+  kycProfile KYCProfile @relation(fields: [kycProfileId], references: [id], onDelete: Cascade)
+  
+  @@index([kycProfileId])
+  @@map("rejection_reasons")
+}
+
 // TODO: Understand how to handle endorsements and if necessary, add them back in
 // model Endorsement {
 //   id          String   @id @default(cuid())
-//   profileId   String   @map("profile_id")
+//   kycProfileId String   @map("kyc_profile_id")
 //   createdAt   DateTime @default(now())
 //   updatedAt   DateTime @updatedAt
-  
-//   // Endorsement Information
-//   endorsementType EndorsementType @map("endorsement_type") // e.g., "base", "sepa" // change to enum with values base, sepa, spei
-//   endorsementType String @map("endorsement_type") // e.g., "base", "sepa" // change to enum with values base, sepa, spei
-
-//   status          String @default("pending")       // pending, approved, rejected
-  
+//   
+//   // Bridge Protocol Response Fields
+//   name          EndorsementType   @map("endorsement_type")
+//   status        EndorsementStatus @default(incomplete)
+//   additionalRequirements String[] @default([]) @map("additional_requirements")
+//   
 //   // Relations
-//   profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  
-//   @@index([profileId])
+//   kycProfile KYCProfile @relation(fields: [kycProfileId], references: [id], onDelete: Cascade)
+//   
+//   @@index([kycProfileId])
+//   @@index([name])
 //   @@map("endorsements")
 // }
 

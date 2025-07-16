@@ -56,7 +56,7 @@ export async function PUT(request: NextRequest) {
 
     const userId = session.user.id;
     const data = await request.json();
-    const { firstName, lastName, active } = data;
+    const { firstName, lastName, status } = data;
 
     // Update profile in the database
     const updatedProfile = await prisma.profile.update({
@@ -64,7 +64,7 @@ export async function PUT(request: NextRequest) {
       data: {
         firstName,
         lastName,
-        active,
+        status,
       },
     });
 
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
           userId,
           firstName,
           lastName,
-          active: true,
+          status: "active",
           role: "USER",
         },
       });
@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
         userId: authenticatedUserId,
         firstName,
         lastName,
-        active: true,
+        status: "active",
         role: "USER",
       },
     });

@@ -97,30 +97,13 @@ export function NavUser() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <Sparkles />
-                Upgrade to Pro
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
+
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem asChild>
-                <Link href="/settings/account">
+                <Link href="/settings">
                   <BadgeCheck />
                   Account
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/settings">
-                  <CreditCard />
-                  Billing
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/settings/notifications">
-                  <Bell />
-                  Notifications
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuGroup>

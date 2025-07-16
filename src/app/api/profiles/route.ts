@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import prisma from "@/lib/prisma";
-import type { UserRole, Prisma } from "@prisma/client";
+import type { UserRole, UserStatus, Prisma } from "@prisma/client";
 
 // GET: Fetch all profiles with optional filtering
 export async function GET(req: NextRequest) {
@@ -21,13 +21,13 @@ export async function GET(req: NextRequest) {
     // Get query parameters for filtering
     const { searchParams } = new URL(req.url);
     const role = searchParams.get("role");
-    const active = searchParams.get("active");
+    const status = searchParams.get("status");
 
     // Build the where clause for filtering
     const whereClause: Prisma.ProfileWhereInput = {};
 
     if (role) whereClause.role = role as UserRole;
-    if (active !== null) whereClause.active = active === "true";
+    if (status) whereClause.status = status as UserStatus;
 
     // Fetch profiles from the database
     const profiles = await prisma.profile.findMany({

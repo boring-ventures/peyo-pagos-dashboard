@@ -35,7 +35,7 @@ const settingsFormSchema = z.object({
     .string()
     .min(2, "El apellido debe tener al menos 2 caracteres")
     .optional(),
-  active: z.boolean().default(true),
+  status: z.enum(["active", "disabled", "deleted"]).default("active"),
 });
 
 type SettingsFormValues = z.infer<typeof settingsFormSchema>;
@@ -51,7 +51,7 @@ export function SettingsForm() {
     defaultValues: {
       firstName: profile?.firstName || "",
       lastName: profile?.lastName || "",
-      active: profile?.active ?? true,
+      status: profile?.status || "active",
     },
   });
 
@@ -61,7 +61,7 @@ export function SettingsForm() {
       form.reset({
         firstName: profile.firstName || "",
         lastName: profile.lastName || "",
-        active: profile.active ?? true,
+        status: profile.status || 'active',
       });
     }
   }, [profile, form]);
@@ -97,7 +97,7 @@ export function SettingsForm() {
             body: JSON.stringify({
               firstName: data.firstName,
               lastName: data.lastName,
-              active: data.active,
+              status: data.status,
             }),
           });
 

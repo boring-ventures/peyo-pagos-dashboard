@@ -41,19 +41,26 @@ export function AccountSection() {
           <div className="space-y-1">
             <p className="text-sm font-medium">Estado</p>
             <div>
-              {profile.active ? (
+              {profile.status === 'active' ? (
                 <Badge
                   variant="outline"
                   className="bg-green-50 text-green-700 hover:bg-green-50 border-green-200"
                 >
                   Activo
                 </Badge>
+              ) : profile.status === 'disabled' ? (
+                <Badge
+                  variant="outline"
+                  className="bg-yellow-50 text-yellow-700 hover:bg-yellow-50 border-yellow-200"
+                >
+                  Deshabilitado
+                </Badge>
               ) : (
                 <Badge
                   variant="outline"
                   className="bg-red-50 text-red-700 hover:bg-red-50 border-red-200"
                 >
-                  Inactivo
+                  Eliminado
                 </Badge>
               )}
             </div>
