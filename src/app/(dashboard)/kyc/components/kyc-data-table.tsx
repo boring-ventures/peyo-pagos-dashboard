@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
   ChevronRight,
@@ -12,6 +13,7 @@ import {
   Eye,
   FileText,
   User,
+  UserX,
   Calendar,
   MoreHorizontal,
   CheckCircle2,
@@ -59,8 +61,6 @@ import {
   USER_ROLE_LABELS,
   USER_STATUS_LABELS,
 } from "@/types/kyc";
-import { KYCDetailsModal } from "./kyc-details-modal";
-import { KYCStatusUpdateModal } from "./kyc-status-update-modal";
 
 interface KYCDataTableProps {
   filters: KYCFilters;
@@ -78,6 +78,7 @@ export function KYCDataTable({
   refreshKey,
   showOnlyPending = false,
 }: KYCDataTableProps) {
+  const router = useRouter();
   const [data, setData] = useState<ProfileWithKYC[]>([]);
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
   const [loading, setLoading] = useState(true);
@@ -87,11 +88,7 @@ export function KYCDataTable({
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [selectedProfile, setSelectedProfile] = useState<ProfileWithKYC | null>(
-    null
-  );
-  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
-  const [statusUpdateModalOpen, setStatusUpdateModalOpen] = useState(false);
+
 
   const fetchData = useCallback(async () => {
     try {
@@ -153,13 +150,39 @@ export function KYCDataTable({
   };
 
   const handleViewDetails = (profile: ProfileWithKYC) => {
-    setSelectedProfile(profile);
-    setDetailsModalOpen(true);
+    router.push(`/kyc/${profile.id}`);
   };
 
-  const handleUpdateStatus = (profile: ProfileWithKYC) => {
-    setSelectedProfile(profile);
-    setStatusUpdateModalOpen(true);
+  const handleDeactivateUser = async (profile: ProfileWithKYC) => {
+    try {
+      const response = await fetch(`/api/profile/${profile.userId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          status: profile.status === "active" ? "disabled" : "active",
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update user status");
+      }
+
+      toast({
+        title: "Usuario actualizado",
+        description: `El usuario ha sido ${profile.status === "active" ? "desactivado" : "activado"} correctamente.`,
+      });
+
+      fetchData(); // Refresh the table
+    } catch (error) {
+      console.error("Error updating user status:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el estado del usuario",
+        variant: "destructive",
+      });
+    }
   };
 
   const getKYCStatusBadge = (profile: ProfileWithKYC) => {
@@ -484,10 +507,17 @@ export function KYCDataTable({
                           Ver Detalles
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          onClick={() => handleUpdateStatus(profile)}
+                          onClick={() => handleDeactivateUser(profile)}
+                          className={
+                            profile.status === "active"
+                              ? "text-red-600 focus:text-red-600"
+                              : "text-green-600 focus:text-green-600"
+                          }
                         >
-                          <FileText className="mr-2 h-4 w-4" />
-                          Actualizar Estado
+                          <UserX className="mr-2 h-4 w-4" />
+                          {profile.status === "active"
+                            ? "Desactivar Usuario"
+                            : "Activar Usuario"}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -567,22 +597,7 @@ export function KYCDataTable({
         </div>
       )}
 
-      {/* Modals */}
-      {selectedProfile && (
-        <>
-          <KYCDetailsModal
-            profile={selectedProfile}
-            open={detailsModalOpen}
-            onOpenChange={setDetailsModalOpen}
-          />
-          <KYCStatusUpdateModal
-            profile={selectedProfile}
-            open={statusUpdateModalOpen}
-            onOpenChange={setStatusUpdateModalOpen}
-            onUpdate={fetchData}
-          />
-        </>
-      )}
+
     </div>
   );
 }
