@@ -57,7 +57,6 @@ import type {
 } from "@/types/kyc";
 import {
   KYC_STATUS_LABELS,
-  BRIDGE_STATUS_LABELS,
   USER_ROLE_LABELS,
   USER_STATUS_LABELS,
 } from "@/types/kyc";
@@ -88,7 +87,6 @@ export function KYCDataTable({
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-
 
   const fetchData = useCallback(async () => {
     try {
@@ -248,37 +246,6 @@ export function KYCDataTable({
     );
   };
 
-  const getBridgeStatusBadge = (bridgeStatus: string | null) => {
-    if (!bridgeStatus) {
-      return (
-        <Badge
-          variant="outline"
-          className="bg-gray-50 text-gray-700 border-gray-200"
-        >
-          No Iniciado
-        </Badge>
-      );
-    }
-
-    const statusConfig = {
-      not_started: { color: "bg-gray-50 text-gray-700 border-gray-200" },
-      pending: { color: "bg-yellow-50 text-yellow-700 border-yellow-200" },
-      approved: { color: "bg-green-50 text-green-700 border-green-200" },
-      rejected: { color: "bg-red-50 text-red-700 border-red-200" },
-      under_review: { color: "bg-purple-50 text-purple-700 border-purple-200" },
-    };
-
-    const config =
-      statusConfig[bridgeStatus as keyof typeof statusConfig] ||
-      statusConfig["not_started"];
-
-    return (
-      <Badge variant="outline" className={config.color}>
-        {BRIDGE_STATUS_LABELS[bridgeStatus] || "Desconocido"}
-      </Badge>
-    );
-  };
-
   const getUserInitials = (profile: ProfileWithKYC) => {
     if (profile.firstName || profile.lastName) {
       return [profile.firstName?.[0], profile.lastName?.[0]]
@@ -391,16 +358,7 @@ export function KYCDataTable({
                   {getSortIcon("kycStatus")}
                 </Button>
               </TableHead>
-              <TableHead>
-                <Button
-                  variant="ghost"
-                  onClick={() => handleSort("bridgeVerificationStatus")}
-                  className="h-auto p-0 font-medium"
-                >
-                  Estado Bridge
-                  {getSortIcon("bridgeVerificationStatus")}
-                </Button>
-              </TableHead>
+
               <TableHead>
                 <Button
                   variant="ghost"
@@ -473,13 +431,6 @@ export function KYCDataTable({
 
                   {/* KYC Status */}
                   <TableCell>{getKYCStatusBadge(profile)}</TableCell>
-
-                  {/* Bridge Status */}
-                  <TableCell>
-                    {getBridgeStatusBadge(
-                      profile.kycProfile?.bridgeVerificationStatus || null
-                    )}
-                  </TableCell>
 
                   {/* Registration Date */}
                   <TableCell>
@@ -596,8 +547,6 @@ export function KYCDataTable({
           </div>
         </div>
       )}
-
-
     </div>
   );
 }

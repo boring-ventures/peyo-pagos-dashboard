@@ -292,17 +292,30 @@ async function main() {
 
   try {
     // 1. Obtener todos los perfiles excepto el protegido
+    // Buscar por email Y por rol para ser más robusto
     const profilesToDelete = await prisma.profile.findMany({
       where: {
-        email: {
-          not: PROTECTED_EMAIL,
-        },
+        OR: [
+          // Buscar perfiles sin email (creados por scripts anteriores)
+          {
+            email: null,
+            role: "USER",
+          },
+          // Buscar perfiles con email que no sea el protegido
+          {
+            email: {
+              not: PROTECTED_EMAIL,
+            },
+            role: "USER",
+          },
+        ],
       },
       select: {
         id: true,
         email: true,
         firstName: true,
         lastName: true,
+        role: true,
       },
     });
 
@@ -321,7 +334,8 @@ async function main() {
         profile.firstName && profile.lastName
           ? `${profile.firstName} ${profile.lastName}`
           : "Sin nombre";
-      console.log(`   - ${profile.email} (${name})`);
+      const email = profile.email || "Sin email";
+      console.log(`   - ${email} (${name}) [${profile.role}]`);
     });
     console.log(`\n🛡️  PERFIL PROTEGIDO (NO se eliminará): ${PROTECTED_EMAIL}`);
     console.log(

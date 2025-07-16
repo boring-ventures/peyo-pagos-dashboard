@@ -16,7 +16,6 @@ import { Badge } from "@/components/ui/badge";
 import type { KYCFilters } from "@/types/kyc";
 import {
   KYC_STATUS_LABELS,
-  BRIDGE_STATUS_LABELS,
   USER_ROLE_LABELS,
   USER_STATUS_LABELS,
 } from "@/types/kyc";
@@ -47,7 +46,6 @@ export function KYCFilters({ filters, onFiltersChange }: KYCFiltersProps) {
       role: "all",
       status: "all",
       kycStatus: "all",
-      bridgeVerificationStatus: "all",
       search: "",
     });
   };
@@ -145,27 +143,7 @@ export function KYCFilters({ filters, onFiltersChange }: KYCFiltersProps) {
         </div>
 
         {/* Bridge Status Filter */}
-        <div className="space-y-2">
-          <Label htmlFor="bridge-status-filter">Estado Bridge</Label>
-          <Select
-            value={filters.bridgeVerificationStatus}
-            onValueChange={(value) =>
-              handleFilterChange("bridgeVerificationStatus", value)
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Todos los estados Bridge" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los estados Bridge</SelectItem>
-              {Object.entries(BRIDGE_STATUS_LABELS).map(([value, label]) => (
-                <SelectItem key={value} value={value}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+
       </div>
 
       {/* Active Filters Display */}
@@ -224,19 +202,7 @@ export function KYCFilters({ filters, onFiltersChange }: KYCFiltersProps) {
             </Badge>
           )}
 
-          {filters.bridgeVerificationStatus && (
-            <Badge variant="outline" className="text-xs">
-              Bridge: {BRIDGE_STATUS_LABELS[filters.bridgeVerificationStatus]}
-              <button
-                onClick={() =>
-                  handleFilterChange("bridgeVerificationStatus", "")
-                }
-                className="ml-1 hover:bg-muted rounded-sm"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          )}
+
 
           {filters.search && (
             <Badge variant="outline" className="text-xs">

@@ -11,6 +11,8 @@ config();
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseBucket =
+  process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET || "documents";
 const bridgeApiKey = process.env.BRIDGE_API_KEY;
 const bridgeApiUrl =
   process.env.BRIDGE_API_URL || "https://api.sandbox.bridge.xyz/v0";
@@ -62,14 +64,15 @@ function generateUUID(): string {
   });
 }
 
-// Función para crear imagen mock como Buffer
+// Función para crear imagen mock como Buffer - imagen más realista
 function generateMockImageBuffer(): Buffer {
+  // Imagen PNG de 100x100 con texto "KYC DOC"
   const base64 =
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==";
+    "iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAACXBIWXMAAAsTAAALEwEAmpwYAAAFPklEQVR4nO2dS2wUZRjGn5md3e622623lhYKFkqhINRWY0CjxhtqjBdiolGJGhONxpNoYjReEhONJkZjPBgTDzYxJl4SEw9GE28YL6hRwYsKKFqgFWq33e5u2+3uzM+MO9/OzndZZmdmdqd/k5ds25n5v+f5vv+87+3vW0IIIYQQQgghhBBCCCGEEEIIIYQQQgghhBBCCCGEEEIIIYQQQgghhBBCCCGEEEIIISQ8WJIkLZckqV2SpA5JkhplWW6QJKlOkqRaSZJqJEmqkSSpWpKkKkmSKiVJqrA+W24d02EdWyVJUrUsyxWyLI/JsjwsyzIvy/KwLMtDkiQNWceNyLI8LEvyiCzLI7IsD0uSNGT93xG7Hkxfsr6nwvp9ldbvrrJ+v8P6HQ7rGqy/xWH9XS2yLDfKstxq/Z2ttizLLbIst8qy3CLLcosta3yf9T3tltVhn7ftdXxnCF3wG9YtdGa/+/G//XE6Bs9f3bqgKNe6v9DvyqxzO+06d1ltoOKsNtRu/23t1t/bbv3t7bIs66bfO8sNi6ZpMklKJhNKoSBnGw2qJCVz/VyuK5VKDaVSqe4kJXsN59j/OzQ01JNMJnsxz9OnT3fHPaY6nU73JhKJHkwczJ6envZEItGTSCT6Mcdg5XI5rVKppLFyqVRKY+ahhDnOOjZjvwrOsc85z8fYx5g5tVpNJxKJJJZKJZNGbkMoiqJqRhxNV6tVVdM0H9YA5mg86zjmGLPdPqdd5074lbPONYD5jb9xD+b/N//3bXLLZVvPQMfhOJ8N1fmYuyGwJH1vOW0xhkwwwpIdFTBwJkOZzWa1EolEr20oKJNM0Y31/TJJ1/sT9vG4EQUNdBrm9+DGwH5YnI0uUCaTyRo1RqRsI0OOKBBEcP2w6KJkL1dM7Hee6y5YeU4hGz9iM0bfYh7+3mTSKdewOIetMFjBHo9uF6RSqaxtNL2I8qk0t80PN5Ct3x5EOjJllEql+nw24xAWWyCUfofGCX05+2cP4DiHgYW1vGC7AWm6ruKmf1AjHObOhJFJpVIGlgXyxMCNZddhTlR1aXECWcVEcpYkCyub+vUJ4+rT6bS1IJgxFd2MU6lUn7+SnDZdNIiA7WGYOdVoLp2rO2OEcOOJJ3/4i3fffe8bTwfYz5eHzUw4x3Ac8zicb37BpvY7WlmPfPXVV8xzfZuTz+e9xrTBBgpMo7Lc6qiCqAd8nzWZXo8gywDEGf5aOTywP40vv/zytPeT53kJIFYWYQ9lOC/POAEkNDZzwYUJYp5gIl9k2cyCwDwjdIW5mWRD6LPFcGGM48OMIFhQwqJA/jBkiWWEz6fzXJxjDbJA0OzBa97S7Oy0n58w5i8ZJWHGEdwwJGwowzfmVwfChZllzFIiWVh1CxgKZFw/jGHmIFGCMVZwn0Qj3DShY8tF3Hx/I4zZ2OJHgC/EUNhZM+Zg5sJtxqzsQcbUmDGxr53x6g8tnEGKO1PcYuyGK0YsHe5AtsNO6IjHe54EucaV5chaDWGIf4YE2ZD6YIgxZWaZY3Gm5vwOhgCWaUHhT1EM3zJzNhw44xjGHLNOl5OLnLpDWQgU7LYgOEWOCXaTJINXr/o8vDbVLCR4kA7Y3pjH4czYWnzUCrNZYYfXX/EE5z04U0ixuauwOy0qgYV6AHmNdWqtlZKAGXhDYFb9g7NYuMTHpbC6lz1PoOKJdY1jrCxD2cOaOGCxZx+gx42wjFAkKOyNJa3YpvMhfr3KiWRZaJB7lYYwmGOhiZWHqGDNRgkhhBBCCCGEEEIIIYQQQgghhBBCCCGEEEIIIYQQQgghhBBCCCGEEEIIIYQQQgghhBBCCCGEEEIIIYQQYlH/AwTsVsUdYSuqAAAAAElFTkSuQmCC";
   return Buffer.from(base64, "base64");
 }
 
-// Función para subir imagen a Supabase (siempre genera URL real)
+// Función para subir imagen a Supabase (siempre intenta subir archivo real)
 async function uploadImageToSupabase(
   profileId: string,
   documentType: string,
@@ -82,7 +85,7 @@ async function uploadImageToSupabase(
     // Intentar subir con service key si está disponible
     if (supabaseAdmin) {
       const { error: uploadError } = await supabaseAdmin.storage
-        .from("avatars")
+        .from(supabaseBucket)
         .upload(filePath, imageBuffer, {
           contentType: "image/png",
           cacheControl: "3600",
@@ -95,29 +98,56 @@ async function uploadImageToSupabase(
       } else {
         const {
           data: { publicUrl },
-        } = supabaseAdmin.storage.from("avatars").getPublicUrl(filePath);
+        } = supabaseAdmin.storage.from(supabaseBucket).getPublicUrl(filePath);
 
-        console.log(`✅ Imagen subida exitosamente: ${publicUrl}`);
+        console.log(
+          `✅ Imagen subida exitosamente con service key: ${publicUrl}`
+        );
         return publicUrl;
       }
     }
 
-    // Si no hay service key o falló la subida, generar URL pública válida
-    // Supabase siempre genera URLs válidas para el bucket público "avatars"
-    const {
-      data: { publicUrl },
-    } = supabaseClient.storage.from("avatars").getPublicUrl(filePath);
+    // Intentar subir con cliente público (sin service key)
+    console.log(`🔄 Intentando subir con cliente público: ${filePath}`);
 
-    console.log(`📋 URL generada (archivo no subido): ${publicUrl}`);
-    return publicUrl;
+    const { error: publicUploadError } = await supabaseClient.storage
+      .from(supabaseBucket)
+      .upload(filePath, imageBuffer, {
+        contentType: "image/png",
+        cacheControl: "3600",
+      });
+
+    if (publicUploadError) {
+      console.warn(
+        `⚠️  Error subiendo imagen con cliente público: ${publicUploadError.message}`
+      );
+
+      // Si falla, generar URL válida de Supabase para el archivo
+      const {
+        data: { publicUrl },
+      } = supabaseClient.storage.from(supabaseBucket).getPublicUrl(filePath);
+
+      console.log(`📋 URL generada (archivo no subido): ${publicUrl}`);
+      return publicUrl;
+    } else {
+      const {
+        data: { publicUrl },
+      } = supabaseClient.storage.from(supabaseBucket).getPublicUrl(filePath);
+
+      console.log(
+        `✅ Imagen subida exitosamente con cliente público: ${publicUrl}`
+      );
+      return publicUrl;
+    }
   } catch (error) {
     console.warn(`⚠️  Error en proceso de subida: ${error}`);
 
     // Fallback: generar URL válida de Supabase aunque no se suba el archivo
     const {
       data: { publicUrl },
-    } = supabaseClient.storage.from("avatars").getPublicUrl(filePath);
+    } = supabaseClient.storage.from(supabaseBucket).getPublicUrl(filePath);
 
+    console.log(`📋 URL fallback generada: ${publicUrl}`);
     return publicUrl;
   }
 }
@@ -132,8 +162,6 @@ function mapBridgeResponseToKYC(bridgeResponse: any, userData: any) {
     email: bridgeResponse?.email || userData.email,
 
     // Mapear estado de Bridge a nuestro estado local usando la función de mapeo
-    bridgeVerificationStatus:
-      bridgeResponse?.status || userData.bridgeVerificationStatus,
     kycStatus: bridgeResponse?.status
       ? mapBridgeStatusToKYCStatus(bridgeResponse.status)
       : userData.kycStatus,
@@ -337,7 +365,6 @@ const SAMPLE_USERS = [
     nationality: "MEX",
     birthDate: new Date("1990-05-15"),
     kycStatus: "under_review",
-    bridgeVerificationStatus: "pending",
     employmentStatus: "employed",
     accountPurpose: "personal_or_living_expenses",
     expectedMonthlyPayments: "zero_4999",
@@ -360,7 +387,6 @@ const SAMPLE_USERS = [
     nationality: "MEX",
     birthDate: new Date("1985-11-22"),
     kycStatus: "awaiting_questionnaire",
-    bridgeVerificationStatus: "not_started",
     employmentStatus: "self_employed",
     accountPurpose: "operating_a_company",
     expectedMonthlyPayments: "five_thousand_9999",
@@ -382,7 +408,6 @@ const SAMPLE_USERS = [
     nationality: "MEX",
     birthDate: new Date("1992-03-08"),
     kycStatus: "rejected",
-    bridgeVerificationStatus: "rejected",
     employmentStatus: "employed",
     accountPurpose: "ecommerce_retail_payments",
     expectedMonthlyPayments: "five_thousand_9999",
@@ -404,7 +429,6 @@ const SAMPLE_USERS = [
     nationality: "MEX",
     birthDate: new Date("1995-07-12"),
     kycStatus: "incomplete",
-    bridgeVerificationStatus: "pending",
     employmentStatus: "student",
     accountPurpose: "personal_or_living_expenses",
     expectedMonthlyPayments: "zero_4999",
@@ -427,7 +451,6 @@ const SAMPLE_USERS = [
     nationality: "MEX",
     birthDate: new Date("1987-09-30"),
     kycStatus: "active",
-    bridgeVerificationStatus: "approved",
     employmentStatus: "employed",
     accountPurpose: "ecommerce_retail_payments",
     expectedMonthlyPayments: "fifty_thousand_plus",
@@ -469,6 +492,7 @@ async function createTestUser(userData: any) {
     const profile = await (prisma as any).profile.create({
       data: {
         userId: generateUUID(),
+        email: userData.email, // ✅ AGREGAR EMAIL AQUÍ
         firstName: userData.firstName,
         lastName: userData.lastName,
         status: "active",
@@ -521,7 +545,6 @@ async function createTestUser(userData: any) {
         birthDate: userData.birthDate,
         nationality: userData.nationality,
         kycStatus: mappedData.kycStatus,
-        bridgeVerificationStatus: mappedData.bridgeVerificationStatus,
         kycSubmittedAt: mappedData.kycSubmittedAt,
         kycApprovedAt: mappedData.kycApprovedAt,
         kycRejectedAt: mappedData.kycRejectedAt,

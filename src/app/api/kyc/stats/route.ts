@@ -48,11 +48,7 @@ export async function GET() {
       _count: true,
     });
 
-    // Get Bridge verification status counts
-    const bridgeStatusCounts = await prisma.kYCProfile.groupBy({
-      by: ["bridgeVerificationStatus"],
-      _count: true,
-    });
+
 
     // Get today's activity
     const [newKYCsToday, approvedToday, rejectedToday] = await Promise.all([
@@ -111,36 +107,12 @@ export async function GET() {
       }
     });
 
-    // Process Bridge verification status counts
-    const processedBridgeCounts = {
-      not_started: 0,
-      pending: 0,
-      approved: 0,
-      rejected: 0,
-      under_review: 0,
-    };
 
-    bridgeStatusCounts.forEach((item) => {
-      const status = item.bridgeVerificationStatus || "not_started";
-      if (processedBridgeCounts.hasOwnProperty(status)) {
-        processedBridgeCounts[status as keyof typeof processedBridgeCounts] =
-          item._count;
-      }
-    });
-
-    // Handle null bridge verification statuses
-    const nullBridgeCount = await prisma.kYCProfile.count({
-      where: {
-        bridgeVerificationStatus: null,
-      },
-    });
-    processedBridgeCounts.not_started += nullBridgeCount;
 
     const stats: KYCStats = {
       totalUsers,
       totalKYCProfiles,
       kycStatusCounts: processedKYCCounts,
-      bridgeVerificationCounts: processedBridgeCounts,
       recentActivity: {
         newKYCsToday,
         approvedToday,

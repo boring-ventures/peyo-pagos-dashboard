@@ -37,7 +37,7 @@ export interface KYCTableRow {
   kycProfile?: {
     id: string;
     kycStatus: KYCStatus;
-    bridgeVerificationStatus: string | null;
+
     bridgeCustomerId: string | null;
     kycSubmittedAt: Date | null;
     kycApprovedAt: Date | null;
@@ -65,13 +65,7 @@ export interface KYCStats {
     paused: number;
     offboarded: number;
   };
-  bridgeVerificationCounts: {
-    not_started: number;
-    pending: number;
-    approved: number;
-    rejected: number;
-    under_review: number;
-  };
+
   recentActivity: {
     newKYCsToday: number;
     approvedToday: number;
@@ -85,7 +79,6 @@ export interface KYCFilters {
   role: string;
   status: string;
   kycStatus: string;
-  bridgeVerificationStatus: string;
   search: string;
 }
 
@@ -109,21 +102,10 @@ export interface KYCApiResponse {
 export interface KYCStatusUpdate {
   profileId: string;
   kycStatus?: KYCStatus;
-  bridgeVerificationStatus?: string;
   rejectionReason?: string;
 }
 
-// Bridge Protocol status options
-export const BRIDGE_VERIFICATION_STATUS = {
-  NOT_STARTED: "not_started",
-  PENDING: "pending",
-  APPROVED: "approved",
-  REJECTED: "rejected",
-  UNDER_REVIEW: "under_review",
-} as const;
 
-export type BridgeVerificationStatus =
-  (typeof BRIDGE_VERIFICATION_STATUS)[keyof typeof BRIDGE_VERIFICATION_STATUS];
 
 // KYC Status labels
 export const KYC_STATUS_LABELS: Record<KYCStatus, string> = {
@@ -138,14 +120,7 @@ export const KYC_STATUS_LABELS: Record<KYCStatus, string> = {
   offboarded: "Desvinculado",
 };
 
-// Bridge Verification Status labels
-export const BRIDGE_STATUS_LABELS: Record<string, string> = {
-  not_started: "No Iniciado",
-  pending: "Pendiente",
-  approved: "Aprobado",
-  rejected: "Rechazado",
-  under_review: "En Revisión",
-};
+
 
 // User Role labels
 export const USER_ROLE_LABELS: Record<UserRole, string> = {

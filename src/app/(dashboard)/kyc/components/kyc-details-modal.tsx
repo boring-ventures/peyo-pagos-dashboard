@@ -29,7 +29,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ProfileWithKYC, KYCProfileWithRelations } from "@/types/kyc";
 import {
   KYC_STATUS_LABELS,
-  BRIDGE_STATUS_LABELS,
   USER_ROLE_LABELS,
   USER_STATUS_LABELS,
 } from "@/types/kyc";
@@ -207,38 +206,6 @@ export function KYCDetailsModal({
                           <p className="text-sm text-red-600 mt-2">
                             <strong>Razón de rechazo:</strong>{" "}
                             {profile.kycProfile.kycRejectionReason}
-                          </p>
-                        )}
-                      </CardContent>
-                    </Card>
-
-                    {/* Bridge Status */}
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-sm font-medium flex items-center">
-                          <Building className="w-4 h-4 mr-2" />
-                          Estado Bridge Protocol
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex items-center space-x-2">
-                          {getStatusIcon(
-                            profile.kycProfile.bridgeVerificationStatus ||
-                              "not_started"
-                          )}
-                          <Badge variant="outline" className="bg-gray-50">
-                            {
-                              BRIDGE_STATUS_LABELS[
-                                profile.kycProfile.bridgeVerificationStatus ||
-                                  "not_started"
-                              ]
-                            }
-                          </Badge>
-                        </div>
-                        {profile.kycProfile.bridgeCustomerId && (
-                          <p className="text-sm text-muted-foreground mt-2">
-                            <strong>Customer ID:</strong>{" "}
-                            {profile.kycProfile.bridgeCustomerId}
                           </p>
                         )}
                       </CardContent>

@@ -25,7 +25,7 @@ export default function KYCPage() {
     role: "all",
     status: "all",
     kycStatus: "all",
-    bridgeVerificationStatus: "all",
+
     search: "",
   });
   const [refreshKey, setRefreshKey] = useState(0);

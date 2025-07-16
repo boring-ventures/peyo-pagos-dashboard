@@ -188,7 +188,6 @@ model KYCProfile {
   nationality   String?              // ISO 3166-1 three-character country code // string length between 2 and 1024
   
   // Bridge Protocol Verification Status
-  bridgeVerificationStatus String?   @default("not_started") @map("bridge_verification_status") // not_started, pending, approved, rejected, under_review
   kycStatus     KYCStatus            @default(not_started) @map("kyc_status")
   kycSubmittedAt DateTime?           @map("kyc_submitted_at")
   kycApprovedAt DateTime?            @map("kyc_approved_at")
@@ -228,7 +227,6 @@ model KYCProfile {
   
   @@index([kycStatus])
   @@index([bridgeCustomerId])
-  @@index([bridgeVerificationStatus])
   @@map("kyc_profiles")
 }
 

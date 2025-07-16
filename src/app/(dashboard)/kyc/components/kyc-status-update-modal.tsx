@@ -35,13 +35,12 @@ import { LoadingScreen } from "@/components/ui/loading-screen";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AlertTriangle, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import type { ProfileWithKYC } from "@/types/kyc";
-import { KYC_STATUS_LABELS, BRIDGE_STATUS_LABELS } from "@/types/kyc";
+import { KYC_STATUS_LABELS } from "@/types/kyc";
 import type { KYCStatus } from "@prisma/client";
 
 const statusUpdateSchema = z
   .object({
     kycStatus: z.string().optional(),
-    bridgeVerificationStatus: z.string().optional(),
     rejectionReason: z.string().optional(),
   })
   .refine(
@@ -51,10 +50,10 @@ const statusUpdateSchema = z
         return false;
       }
       // At least one status must be selected
-      return data.kycStatus || data.bridgeVerificationStatus;
+      return data.kycStatus;
     },
     {
-      message: "Debe seleccionar al menos un estado para actualizar",
+      message: "Debe seleccionar un estado para actualizar",
     }
   );
 
@@ -79,7 +78,6 @@ export function KYCStatusUpdateModal({
     resolver: zodResolver(statusUpdateSchema),
     defaultValues: {
       kycStatus: "keep_current",
-      bridgeVerificationStatus: "keep_current",
       rejectionReason: "",
     },
   });
@@ -118,11 +116,6 @@ export function KYCStatusUpdateModal({
           kycStatus:
             data.kycStatus && data.kycStatus !== "keep_current"
               ? data.kycStatus
-              : undefined,
-          bridgeVerificationStatus:
-            data.bridgeVerificationStatus &&
-            data.bridgeVerificationStatus !== "keep_current"
-              ? data.bridgeVerificationStatus
               : undefined,
           rejectionReason: data.rejectionReason || undefined,
         }),
@@ -195,14 +188,6 @@ export function KYCStatusUpdateModal({
                 ? KYC_STATUS_LABELS[profile.kycProfile.kycStatus as KYCStatus]
                 : "Sin KYC"}
             </Badge>
-            <Badge variant="outline">
-              Bridge:{" "}
-              {profile.kycProfile?.bridgeVerificationStatus
-                ? BRIDGE_STATUS_LABELS[
-                    profile.kycProfile.bridgeVerificationStatus
-                  ]
-                : "No Iniciado"}
-            </Badge>
           </div>
         </div>
 
@@ -243,35 +228,6 @@ export function KYCStatusUpdateModal({
             />
 
             {/* Bridge Status */}
-            <FormField
-              control={form.control}
-              name="bridgeVerificationStatus"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nuevo Estado Bridge</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar estado Bridge" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="keep_current">
-                        Mantener actual
-                      </SelectItem>
-                      {Object.entries(BRIDGE_STATUS_LABELS).map(
-                        ([value, label]) => (
-                          <SelectItem key={value} value={value}>
-                            {label}
-                          </SelectItem>
-                        )
-                      )}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             {/* Rejection Reason */}
             {isRejecting && (

@@ -37,9 +37,7 @@ export async function GET(req: NextRequest) {
     const role = searchParams.get("role");
     const status = searchParams.get("status");
     const kycStatus = searchParams.get("kycStatus");
-    const bridgeVerificationStatus = searchParams.get(
-      "bridgeVerificationStatus"
-    );
+
     const search = searchParams.get("search");
     const sortBy = searchParams.get("sortBy") || "createdAt";
     const sortOrder = searchParams.get("sortOrder") || "desc";
@@ -59,10 +57,8 @@ export async function GET(req: NextRequest) {
 
     // Build KYC where clause
     const kycWhereClause: Prisma.KYCProfileWhereInput = {};
-    if (kycStatus && kycStatus !== "all") kycWhereClause.kycStatus = kycStatus as KYCStatus;
-    if (bridgeVerificationStatus && bridgeVerificationStatus !== "all") {
-      kycWhereClause.bridgeVerificationStatus = bridgeVerificationStatus;
-    }
+    if (kycStatus && kycStatus !== "all")
+      kycWhereClause.kycStatus = kycStatus as KYCStatus;
 
     // If there are KYC filters, we need to filter profiles that have KYC data matching
     if (Object.keys(kycWhereClause).length > 0) {
@@ -78,10 +74,6 @@ export async function GET(req: NextRequest) {
     const orderBy: Prisma.ProfileOrderByWithRelationInput = {};
     if (sortBy === "kycStatus") {
       orderBy.kycProfile = { kycStatus: sortOrder as "asc" | "desc" };
-    } else if (sortBy === "bridgeVerificationStatus") {
-      orderBy.kycProfile = {
-        bridgeVerificationStatus: sortOrder as "asc" | "desc",
-      };
     } else {
       orderBy[sortBy as keyof Prisma.ProfileOrderByWithRelationInput] =
         sortOrder as "asc" | "desc";
@@ -163,8 +155,7 @@ export async function PUT(req: NextRequest) {
     }
 
     const data = await req.json();
-    const { profileId, kycStatus, bridgeVerificationStatus, rejectionReason } =
-      data;
+    const { profileId, kycStatus, rejectionReason } = data;
 
     if (!profileId) {
       return NextResponse.json(
@@ -196,9 +187,6 @@ export async function PUT(req: NextRequest) {
           updateData.kycRejectionReason = rejectionReason;
         }
       }
-      if (bridgeVerificationStatus) {
-        updateData.bridgeVerificationStatus = bridgeVerificationStatus;
-      }
 
       kycProfile = await prisma.kYCProfile.update({
         where: { id: profile.kycProfile.id },
@@ -216,7 +204,7 @@ export async function PUT(req: NextRequest) {
           },
         });
       }
-    } else if (kycStatus || bridgeVerificationStatus) {
+    } else if (kycStatus) {
       // Create KYC profile if it doesn't exist
       const createData: Prisma.KYCProfileCreateInput = {
         profile: { connect: { id: profile.id } },
@@ -230,9 +218,7 @@ export async function PUT(req: NextRequest) {
           createData.kycRejectionReason = rejectionReason;
         }
       }
-      if (bridgeVerificationStatus) {
-        createData.bridgeVerificationStatus = bridgeVerificationStatus;
-      }
+
 
       kycProfile = await prisma.kYCProfile.create({
         data: createData,

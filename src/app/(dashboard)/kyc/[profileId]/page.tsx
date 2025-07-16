@@ -26,7 +26,6 @@ import {
 import type { ProfileWithKYC, KYCProfileWithRelations } from "@/types/kyc";
 import {
   KYC_STATUS_LABELS,
-  BRIDGE_STATUS_LABELS,
   USER_ROLE_LABELS,
   USER_STATUS_LABELS,
 } from "@/types/kyc";
@@ -298,19 +297,6 @@ export default function KYCProfileDetailsPage() {
                       {
                         KYC_STATUS_LABELS[
                           kycDetails?.kycStatus || "not_started"
-                        ]
-                      }
-                    </Badge>
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Estado Bridge:</p>
-                    <Badge variant="outline">
-                      {
-                        BRIDGE_STATUS_LABELS[
-                          kycDetails?.bridgeVerificationStatus || "not_started"
                         ]
                       }
                     </Badge>

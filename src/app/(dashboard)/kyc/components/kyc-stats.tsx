@@ -198,54 +198,7 @@ export function KYCStats({ refreshKey }: KYCStatsProps) {
         </CardContent>
       </Card>
 
-      {/* Bridge Protocol Status */}
-      <Card className="md:col-span-2 lg:col-span-2">
-        <CardHeader>
-          <CardTitle className="text-sm font-medium">
-            Estado Bridge Protocol
-          </CardTitle>
-          <CardDescription>
-            Distribución de estados de verificación
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="text-center space-y-1">
-              <Badge
-                variant="outline"
-                className="w-full bg-green-50 text-green-700 border-green-200"
-              >
-                Aprobados
-              </Badge>
-              <div className="text-lg font-bold">
-                {stats.bridgeVerificationCounts.approved}
-              </div>
-            </div>
-            <div className="text-center space-y-1">
-              <Badge
-                variant="outline"
-                className="w-full bg-yellow-50 text-yellow-700 border-yellow-200"
-              >
-                Pendientes
-              </Badge>
-              <div className="text-lg font-bold">
-                {stats.bridgeVerificationCounts.pending}
-              </div>
-            </div>
-            <div className="text-center space-y-1">
-              <Badge
-                variant="outline"
-                className="w-full bg-red-50 text-red-700 border-red-200"
-              >
-                Rechazados
-              </Badge>
-              <div className="text-lg font-bold">
-                {stats.bridgeVerificationCounts.rejected}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+
     </div>
   );
 }
