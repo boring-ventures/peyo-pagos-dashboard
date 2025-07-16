@@ -19,6 +19,12 @@ enum UserRole {
   SUPERADMIN
 }
 
+enum UserStatus {
+  active
+  disabled
+  deleted
+}
+
 enum KYCStatus {
   active
   awaiting_questionnaire
@@ -110,14 +116,16 @@ model Profile {
   userId        String               @unique
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
-  
-  // User Role
+
+  // User Status and Role
+  status        UserStatus           @default(active)
   role          UserRole             @default(USER)
   
   // Relations
   kycProfile    KYCProfile?          // One-to-one relationship for KYC data
   
   @@index([userId])
+  @@index([status])
   @@map("profiles")
 }
 
@@ -126,7 +134,7 @@ model KYCProfile {
   profileId     String               @unique @map("profile_id")
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
-  active        Boolean              @default(true)
+  status        UserStatus           @default(active)
   
   // Bridge.xyz Integration
   bridgeCustomerId String?           @unique @map("bridge_customer_id")
