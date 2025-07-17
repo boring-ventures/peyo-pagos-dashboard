@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { KYCDataTable } from "./components/kyc-data-table";
-import { KYCFilters } from "./components/kyc-filters";
-import { KYCStats } from "./components/kyc-stats";
-import { KYCLoader } from "./components/kyc-loader";
+import { UserDataTable } from "./components/user-data-table";
+import { UserFilters } from "./components/user-filters";
+import { UserStats } from "./components/user-stats";
+import { UserLoader } from "./components/user-loader";
+import { CreateUserModal } from "./components/create-user-modal";
 import { useAuth } from "@/providers/auth-provider";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, FileText, Users, AlertCircle } from "lucide-react";
+import { RefreshCw, Users, UserPlus, Shield } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -18,15 +19,16 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 
-export default function KYCPage() {
+export default function UsersPage() {
   const { profile } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState({
+    role: "all",
     status: "all",
-    kycStatus: "all",
     search: "",
   });
   const [refreshKey, setRefreshKey] = useState(0);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Check if user is admin
   useEffect(() => {
@@ -43,9 +45,14 @@ export default function KYCPage() {
     setFilters(newFilters);
   };
 
+  const handleUserCreated = () => {
+    setShowCreateModal(false);
+    handleRefresh();
+  };
+
   // Show loader while loading
   if (isLoading) {
-    return <KYCLoader />;
+    return <UserLoader />;
   }
 
   // Check if user is admin
@@ -54,11 +61,11 @@ export default function KYCPage() {
       <div className="container mx-auto py-10">
         <Card className="max-w-md mx-auto">
           <CardHeader className="text-center">
-            <AlertCircle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+            <Shield className="mx-auto h-12 w-12 text-red-500 mb-4" />
             <CardTitle className="text-xl">Acceso Denegado</CardTitle>
             <CardDescription>
               No tienes permisos para acceder a este módulo. Solo los
-              administradores pueden gestionar KYC.
+              administradores pueden gestionar usuarios.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -72,17 +79,27 @@ export default function KYCPage() {
       <div className="flex items-center justify-between">
         <div className="space-y-3">
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-            <FileText className="h-8 w-8" />
-            Gestión de KYC
+            <Users className="h-8 w-8" />
+            Gestión de Usuarios
           </h1>
           <p className="text-muted-foreground text-lg">
-            Administra las verificaciones KYC de usuarios que requieren verificación Bridge Protocol
+            Administra todos los usuarios de la plataforma, incluyendo super
+            administradores
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-xs">
-            Bridge Protocol
+            Gestión Básica
           </Badge>
+          <Button
+            onClick={() => setShowCreateModal(true)}
+            variant="default"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <UserPlus className="h-4 w-4" />
+            Crear Usuario
+          </Button>
           <Button
             onClick={handleRefresh}
             variant="outline"
@@ -96,31 +113,35 @@ export default function KYCPage() {
       </div>
 
       {/* Stats */}
-      <KYCStats refreshKey={refreshKey} />
+      <UserStats refreshKey={refreshKey} />
 
       {/* Main Content */}
-      <Tabs defaultValue="users" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+      <Tabs defaultValue="all" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="all" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Todos los Usuarios
+          </TabsTrigger>
+          <TabsTrigger value="admins" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            Super Administradores
+          </TabsTrigger>
           <TabsTrigger value="users" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
-            Usuarios y KYC
-          </TabsTrigger>
-          <TabsTrigger value="pending" className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4" />
-            Pendientes de Revisión
+            Usuarios Regulares
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="users" className="space-y-6">
+        <TabsContent value="all" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Filtros y Búsqueda</CardTitle>
               <CardDescription>
-                Filtra usuarios por estado KYC, rol, y otros criterios
+                Filtra usuarios por rol, estado, y otros criterios
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <KYCFilters
+              <UserFilters
                 filters={filters}
                 onFiltersChange={handleFiltersChange}
               />
@@ -129,39 +150,67 @@ export default function KYCPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Tabla de Usuarios y KYC</CardTitle>
+              <CardTitle>Tabla de Usuarios</CardTitle>
               <CardDescription>
-                Vista completa de todos los usuarios y su estado de verificación
-                KYC
+                Vista completa de todos los usuarios registrados en la
+                plataforma
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <KYCDataTable filters={filters} refreshKey={refreshKey} />
+              <UserDataTable filters={filters} refreshKey={refreshKey} />
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="pending" className="space-y-6">
+        <TabsContent value="admins" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>KYC Pendientes de Revisión</CardTitle>
+              <CardTitle>Super Administradores</CardTitle>
               <CardDescription>
-                Usuarios que requieren revisión manual o acción administrativa
+                Usuarios con permisos administrativos completos
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <KYCDataTable
+              <UserDataTable
                 filters={{
                   ...filters,
-                  kycStatus: "under_review",
+                  role: "SUPERADMIN",
                 }}
                 refreshKey={refreshKey}
-                showOnlyPending={true}
+                showOnlyRole="SUPERADMIN"
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="users" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Usuarios Regulares</CardTitle>
+              <CardDescription>
+                Usuarios con acceso estándar que requieren verificación KYC
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <UserDataTable
+                filters={{
+                  ...filters,
+                  role: "USER",
+                }}
+                refreshKey={refreshKey}
+                showOnlyRole="USER"
               />
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Create User Modal */}
+      <CreateUserModal
+        open={showCreateModal}
+        onOpenChange={setShowCreateModal}
+        onUserCreated={handleUserCreated}
+      />
     </div>
   );
 }

@@ -29,6 +29,7 @@ import {
   XCircle,
   Clock,
   RefreshCw,
+  Hash,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -217,7 +218,7 @@ export function KYCDetailsModal({
                       {getUserInitials()}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="space-y-2">
+                  <div className="space-y-2 flex-1">
                     <div>
                       <h3 className="text-xl font-semibold">
                         {getUserDisplayName()}
@@ -225,6 +226,12 @@ export function KYCDetailsModal({
                       <p className="text-sm text-muted-foreground">
                         {profile.email}
                       </p>
+                      {kycDetails?.bridgeCustomerId && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                          <Hash className="h-3 w-3" />
+                          Bridge ID: <span className="font-mono">{kycDetails.bridgeCustomerId}</span>
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center space-x-2">
                       <Badge variant="secondary">

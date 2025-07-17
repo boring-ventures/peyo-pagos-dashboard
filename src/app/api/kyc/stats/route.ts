@@ -36,27 +36,35 @@ export async function GET() {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Get total counts
+    // Get total counts (only USER role users for KYC module)
     const [totalUsers, totalKYCProfiles] = await Promise.all([
-      prisma.profile.count(),
+      prisma.profile.count({
+        where: { role: "USER" },
+      }),
       prisma.kYCProfile.count(),
     ]);
 
-    // Get KYC status counts
+    // Get KYC status counts (only for USER role users)
     const kycStatusCounts = await prisma.kYCProfile.groupBy({
       by: ["kycStatus"],
       _count: true,
+      where: {
+        profile: {
+          role: "USER",
+        },
+      },
     });
 
-
-
-    // Get today's activity
+    // Get today's activity (only for USER role users)
     const [newKYCsToday, approvedToday, rejectedToday] = await Promise.all([
       prisma.kYCProfile.count({
         where: {
           createdAt: {
             gte: today,
             lt: tomorrow,
+          },
+          profile: {
+            role: "USER",
           },
         },
       }),
@@ -66,6 +74,9 @@ export async function GET() {
             gte: today,
             lt: tomorrow,
           },
+          profile: {
+            role: "USER",
+          },
         },
       }),
       prisma.kYCProfile.count({
@@ -74,15 +85,21 @@ export async function GET() {
             gte: today,
             lt: tomorrow,
           },
+          profile: {
+            role: "USER",
+          },
         },
       }),
     ]);
 
-    // Get pending review count
+    // Get pending review count (only for USER role users)
     const pendingReview = await prisma.kYCProfile.count({
       where: {
         kycStatus: {
           in: ["under_review", "awaiting_questionnaire", "awaiting_ubo"],
+        },
+        profile: {
+          role: "USER",
         },
       },
     });
@@ -106,8 +123,6 @@ export async function GET() {
           item._count;
       }
     });
-
-
 
     const stats: KYCStats = {
       totalUsers,

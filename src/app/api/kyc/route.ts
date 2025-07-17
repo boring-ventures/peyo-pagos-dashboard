@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import prisma from "@/lib/prisma";
-import type { UserRole, UserStatus, KYCStatus, Prisma } from "@prisma/client";
+import type { UserStatus, KYCStatus, Prisma } from "@prisma/client";
 
 // GET: Fetch all users with KYC data (admin only)
 export async function GET(req: NextRequest) {
@@ -34,7 +34,6 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
-    const role = searchParams.get("role");
     const status = searchParams.get("status");
     const kycStatus = searchParams.get("kycStatus");
 
@@ -43,9 +42,10 @@ export async function GET(req: NextRequest) {
     const sortOrder = searchParams.get("sortOrder") || "desc";
 
     // Build the where clause for filtering profiles
-    const whereClause: Prisma.ProfileWhereInput = {};
-
-    if (role && role !== "all") whereClause.role = role as UserRole;
+    // Only show USER role users in KYC module (exclude SUPERADMIN)
+    const whereClause: Prisma.ProfileWhereInput = {
+      role: "USER",
+    };
     if (status && status !== "all") whereClause.status = status as UserStatus;
     if (search) {
       whereClause.OR = [
@@ -218,7 +218,6 @@ export async function PUT(req: NextRequest) {
           createData.kycRejectionReason = rejectionReason;
         }
       }
-
 
       kycProfile = await prisma.kYCProfile.create({
         data: createData,

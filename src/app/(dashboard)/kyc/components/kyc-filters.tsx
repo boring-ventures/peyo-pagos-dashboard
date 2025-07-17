@@ -16,7 +16,6 @@ import { Badge } from "@/components/ui/badge";
 import type { KYCFilters } from "@/types/kyc";
 import {
   KYC_STATUS_LABELS,
-  USER_ROLE_LABELS,
   USER_STATUS_LABELS,
 } from "@/types/kyc";
 
@@ -43,7 +42,6 @@ export function KYCFilters({ filters, onFiltersChange }: KYCFiltersProps) {
   const clearFilters = () => {
     setSearchInput("");
     onFiltersChange({
-      role: "all",
       status: "all",
       kycStatus: "all",
       search: "",
@@ -77,28 +75,7 @@ export function KYCFilters({ filters, onFiltersChange }: KYCFiltersProps) {
       </form>
 
       {/* Filter Controls */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Role Filter */}
-        <div className="space-y-2">
-          <Label htmlFor="role-filter">Rol de Usuario</Label>
-          <Select
-            value={filters.role}
-            onValueChange={(value) => handleFilterChange("role", value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Todos los roles" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los roles</SelectItem>
-              {Object.entries(USER_ROLE_LABELS).map(([value, label]) => (
-                <SelectItem key={value} value={value}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Status Filter */}
         <div className="space-y-2">
           <Label htmlFor="status-filter">Estado de Usuario</Label>
@@ -154,19 +131,6 @@ export function KYCFilters({ filters, onFiltersChange }: KYCFiltersProps) {
             {activeFilterCount} filtro{activeFilterCount !== 1 ? "s" : ""}{" "}
             aplicado{activeFilterCount !== 1 ? "s" : ""}
           </Badge>
-
-          {filters.role && (
-            <Badge variant="outline" className="text-xs">
-              Rol:{" "}
-              {USER_ROLE_LABELS[filters.role as keyof typeof USER_ROLE_LABELS]}
-              <button
-                onClick={() => handleFilterChange("role", "")}
-                className="ml-1 hover:bg-muted rounded-sm"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          )}
 
           {filters.status && (
             <Badge variant="outline" className="text-xs">

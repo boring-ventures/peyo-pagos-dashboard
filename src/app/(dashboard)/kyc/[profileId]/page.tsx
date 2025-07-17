@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,6 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
+import { ExpandableImage } from "@/components/ui/expandable-image";
 import {
   ArrowLeft,
   User,
@@ -30,6 +30,7 @@ import {
   Clock,
   Mail,
   RefreshCw,
+  Hash,
 } from "lucide-react";
 import type { ProfileWithKYC, KYCProfileWithRelations } from "@/types/kyc";
 
@@ -343,6 +344,12 @@ export default function KYCProfileDetailsPage() {
                 <Mail className="h-4 w-4" />
                 {profile.email}
               </p>
+              {kycDetails?.bridgeCustomerId && (
+                <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                  <Hash className="h-3 w-3" />
+                  Bridge ID: <span className="font-mono">{kycDetails.bridgeCustomerId}</span>
+                </p>
+              )}
               <div className="flex gap-2 mt-2">
                 <Badge variant="secondary">
                   {USER_ROLE_LABELS[profile.role]}
@@ -681,20 +688,16 @@ export default function KYCProfileDetailsPage() {
                           return fullUrl && isValidUrl(fullUrl) ? (
                             <div className="mt-3 space-y-2">
                               <p className="text-sm font-medium">Archivo:</p>
-                              <div className="border rounded-lg overflow-hidden max-w-md">
-                                <Image
-                                  src={fullUrl}
-                                  alt={doc.description || "Documento"}
-                                  width={400}
-                                  height={256}
-                                  className="w-full h-64 object-cover"
-                                  onError={(e) => {
-                                    // Si falla cargar la imagen, mostrar un placeholder
-                                    e.currentTarget.src =
-                                      "/placeholder-document.png";
-                                  }}
-                                />
-                              </div>
+                              <ExpandableImage
+                                src={fullUrl}
+                                alt={doc.description || "Documento"}
+                                title={doc.description || `Documento ${index + 1}`}
+                                description={`Subido: ${formatDate(doc.createdAt)} • Tamaño: ${doc.fileSize ? Math.round(doc.fileSize / 1024) + ' KB' : 'N/A'}`}
+                                width={400}
+                                height={256}
+                                className="max-w-md"
+                                expandButtonPosition="center"
+                              />
                               <div className="flex items-center gap-2 mt-2">
                                 <Button
                                   size="sm"
@@ -791,19 +794,15 @@ export default function KYCProfileDetailsPage() {
                                     <p className="text-xs text-muted-foreground">
                                       Frente:
                                     </p>
-                                    <div className="border rounded-lg overflow-hidden">
-                                      <Image
-                                        src={frontUrl!}
-                                        alt="Documento - Frente"
-                                        width={300}
-                                        height={192}
-                                        className="w-full h-48 object-cover"
-                                        onError={(e) => {
-                                          e.currentTarget.src =
-                                            "/placeholder-document.png";
-                                        }}
-                                      />
-                                    </div>
+                                    <ExpandableImage
+                                      src={frontUrl!}
+                                      alt="Documento - Frente"
+                                      title={`${info.type} - Frente`}
+                                      description={`País emisor: ${info.issuingCountry} • Número: ${info.number || 'No especificado'}`}
+                                      width={300}
+                                      height={192}
+                                      expandButtonPosition="center"
+                                    />
                                   </div>
                                 )}
                                 {hasValidBack && (
@@ -811,19 +810,15 @@ export default function KYCProfileDetailsPage() {
                                     <p className="text-xs text-muted-foreground">
                                       Reverso:
                                     </p>
-                                    <div className="border rounded-lg overflow-hidden">
-                                      <Image
-                                        src={backUrl!}
-                                        alt="Documento - Reverso"
-                                        width={300}
-                                        height={192}
-                                        className="w-full h-48 object-cover"
-                                        onError={(e) => {
-                                          e.currentTarget.src =
-                                            "/placeholder-document.png";
-                                        }}
-                                      />
-                                    </div>
+                                    <ExpandableImage
+                                      src={backUrl!}
+                                      alt="Documento - Reverso"
+                                      title={`${info.type} - Reverso`}
+                                      description={`País emisor: ${info.issuingCountry} • Número: ${info.number || 'No especificado'}`}
+                                      width={300}
+                                      height={192}
+                                      expandButtonPosition="center"
+                                    />
                                   </div>
                                 )}
                               </div>

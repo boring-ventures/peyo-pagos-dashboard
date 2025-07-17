@@ -1,11 +1,25 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: [
-      // Add your Supabase project domain
-      "swfgvfhpmicwptupjyko.supabase.co",
-      "xqakfzhkeiongvzgbhji.supabase.co",
-      "hyxxamyqorfgzwbbiicx.supabase.co",
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'swfgvfhpmicwptupjyko.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/public/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'xqakfzhkeiongvzgbhji.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/public/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'hyxxamyqorfgzwbbiicx.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/public/**',
+      },
     ],
   },
   output: "standalone",

@@ -80,7 +80,6 @@ export interface KYCStats {
 
 // Filter types
 export interface KYCFilters {
-  role: string;
   status: string;
   kycStatus: string;
   search: string;
