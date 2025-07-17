@@ -217,13 +217,16 @@ model KYCProfile {
   requirementsDue String[]           @default([]) @map("requirements_due")
   hasAcceptedTermsOfService Boolean? @default(false) @map("has_accepted_terms_of_service")
   
+  // Bridge Protocol Debug Data
+  bridgeRawResponse Json?            @map("bridge_raw_response") // Full Bridge Protocol API response for debugging
+  
   // Relations
   profile       Profile              @relation(fields: [profileId], references: [id], onDelete: Cascade)
   address       Address?             // One-to-one relationship
   identifyingInfo IdentifyingInformation[]
   documents     Document[]
   rejectionReasons RejectionReason[]
-  // endorsements  Endorsement[]
+  endorsements  Endorsement[]
   
   @@index([kycStatus])
   @@index([bridgeCustomerId])
@@ -314,23 +317,24 @@ model RejectionReason {
   @@map("rejection_reasons")
 }
 
-// TODO: Understand how to handle endorsements and if necessary, add them back in
-// model Endorsement {
-//   id          String   @id @default(cuid())
-//   kycProfileId String   @map("kyc_profile_id")
-//   createdAt   DateTime @default(now())
-//   updatedAt   DateTime @updatedAt
-//   
-//   // Bridge Protocol Response Fields
-//   name          EndorsementType   @map("endorsement_type")
-//   status        EndorsementStatus @default(incomplete)
-//   additionalRequirements String[] @default([]) @map("additional_requirements")
-//   
-//   // Relations
-//   kycProfile KYCProfile @relation(fields: [kycProfileId], references: [id], onDelete: Cascade)
-//   
-//   @@index([kycProfileId])
-//   @@index([name])
-//   @@map("endorsements")
-// }
+model Endorsement {
+  id          String   @id @default(cuid())
+  kycProfileId String   @map("kyc_profile_id")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Bridge Protocol Response Fields
+  name          EndorsementType   @map("endorsement_type")
+  status        EndorsementStatus @default(incomplete)
+  
+  // Requirements object from Bridge API response
+  requirements  Json?             // Contains: issues[], missing, pending[], complete[]
+  
+  // Relations
+  kycProfile KYCProfile @relation(fields: [kycProfileId], references: [id], onDelete: Cascade)
+  
+  @@index([kycProfileId])
+  @@index([name])
+  @@map("endorsements")
+}
 

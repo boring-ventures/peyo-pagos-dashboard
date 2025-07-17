@@ -5,9 +5,12 @@ import type {
   Document,
   IdentifyingInformation,
   RejectionReason,
+  Endorsement,
   UserRole,
   UserStatus,
   KYCStatus,
+  EndorsementType,
+  EndorsementStatus,
 } from "@prisma/client";
 
 // Extended Profile with KYC data
@@ -22,6 +25,7 @@ export interface KYCProfileWithRelations extends KYCProfile {
   identifyingInfo: IdentifyingInformation[];
   documents: Document[];
   rejectionReasons: RejectionReason[];
+  endorsements: Endorsement[];
 }
 
 // KYC Data Table Row
@@ -133,4 +137,18 @@ export const USER_STATUS_LABELS: Record<UserStatus, string> = {
   active: "Activo",
   disabled: "Deshabilitado",
   deleted: "Eliminado",
+};
+
+// Endorsement Type labels
+export const ENDORSEMENT_TYPE_LABELS: Record<EndorsementType, string> = {
+  base: "Base",
+  sepa: "SEPA",
+  spei: "SPEI",
+};
+
+// Endorsement Status labels
+export const ENDORSEMENT_STATUS_LABELS: Record<EndorsementStatus, string> = {
+  incomplete: "Incompleto",
+  approved: "Aprobado",
+  revoked: "Revocado",
 };

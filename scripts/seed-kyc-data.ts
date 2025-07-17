@@ -69,7 +69,7 @@ function generateMockImageBuffer(): Buffer {
   return Buffer.from(base64, "base64");
 }
 
-// Función para subir imagen a Supabase (siempre intenta subir archivo real)
+// Función para subir imagen a Supabase (retorna solo la ruta relativa)
 async function uploadImageToSupabase(
   profileId: string,
   documentType: string,
@@ -93,14 +93,10 @@ async function uploadImageToSupabase(
           `⚠️  Error subiendo imagen con service key: ${uploadError.message}`
         );
       } else {
-        const {
-          data: { publicUrl },
-        } = supabaseAdmin.storage.from(supabaseBucket).getPublicUrl(filePath);
-
         console.log(
-          `✅ Imagen subida exitosamente con service key: ${publicUrl}`
+          `✅ Imagen subida exitosamente con service key: ${filePath}`
         );
-        return publicUrl;
+        return filePath; // ✅ Retornar solo la ruta relativa
       }
     }
 
@@ -119,33 +115,19 @@ async function uploadImageToSupabase(
         `⚠️  Error subiendo imagen con cliente público: ${publicUploadError.message}`
       );
 
-      // Si falla, generar URL válida de Supabase para el archivo
-      const {
-        data: { publicUrl },
-      } = supabaseClient.storage.from(supabaseBucket).getPublicUrl(filePath);
-
-      console.log(`📋 URL generada (archivo no subido): ${publicUrl}`);
-      return publicUrl;
+      console.log(`📋 Ruta generada (archivo no subido): ${filePath}`);
+      return filePath; // ✅ Retornar solo la ruta relativa
     } else {
-      const {
-        data: { publicUrl },
-      } = supabaseClient.storage.from(supabaseBucket).getPublicUrl(filePath);
-
       console.log(
-        `✅ Imagen subida exitosamente con cliente público: ${publicUrl}`
+        `✅ Imagen subida exitosamente con cliente público: ${filePath}`
       );
-      return publicUrl;
+      return filePath; // ✅ Retornar solo la ruta relativa
     }
   } catch (error) {
     console.warn(`⚠️  Error en proceso de subida: ${error}`);
 
-    // Fallback: generar URL válida de Supabase aunque no se suba el archivo
-    const {
-      data: { publicUrl },
-    } = supabaseClient.storage.from(supabaseBucket).getPublicUrl(filePath);
-
-    console.log(`📋 URL fallback generada: ${publicUrl}`);
-    return publicUrl;
+    console.log(`📋 Ruta fallback generada: ${filePath}`);
+    return filePath; // ✅ Retornar solo la ruta relativa
   }
 }
 
@@ -523,7 +505,7 @@ async function createTestUser(userData: any) {
       "address.png"
     );
 
-    console.log(`📁 Imágenes subidas a Supabase:`);
+    console.log(`📁 Rutas de imágenes en Supabase:`);
     console.log(`   - Front: ${imageFrontUrl}`);
     console.log(`   - Back: ${imageBackUrl}`);
     console.log(`   - Proof: ${proofOfAddressUrl}`);
@@ -557,10 +539,37 @@ async function createTestUser(userData: any) {
         payoutFiat: mappedData.payoutFiat,
         futureRequirementsDue: mappedData.futureRequirementsDue,
         requirementsDue: mappedData.requirementsDue,
+        // 🐛 DEBUGGING: Guardar respuesta completa de Bridge Protocol
+        bridgeRawResponse: bridgeResponse,
       },
     });
 
     console.log(`✅ Perfil KYC creado: ${kycProfile.id}`);
+    if (bridgeResponse) {
+      console.log(
+        `🐛 Debug info guardada: ${JSON.stringify(bridgeResponse).length} caracteres de respuesta Bridge`
+      );
+    }
+
+    // 5.1. Crear endorsements desde respuesta de Bridge
+    if (
+      bridgeResponse?.endorsements &&
+      Array.isArray(bridgeResponse.endorsements)
+    ) {
+      for (const endorsement of bridgeResponse.endorsements) {
+        await (prisma as any).endorsement.create({
+          data: {
+            kycProfileId: kycProfile.id,
+            name: endorsement.name, // "base", "sepa", "spei"
+            status: endorsement.status, // "approved", "incomplete", "revoked"
+            requirements: endorsement.requirements, // JSON object with issues, missing, pending, complete
+          },
+        });
+        console.log(
+          `✅ Endorsement creado: ${endorsement.name} (${endorsement.status})`
+        );
+      }
+    }
 
     // 6. Crear dirección
     await (prisma as any).address.create({
@@ -575,7 +584,7 @@ async function createTestUser(userData: any) {
       },
     });
 
-    // 7. Crear información de identificación con URLs reales de Supabase
+    // 7. Crear información de identificación con rutas de Supabase
     await (prisma as any).identifyingInformation.create({
       data: {
         kycProfileId: kycProfile.id,
@@ -588,7 +597,7 @@ async function createTestUser(userData: any) {
       },
     });
 
-    // 8. Crear documento de comprobante con URL real de Supabase
+    // 8. Crear documento de comprobante con ruta de Supabase
     await (prisma as any).document.create({
       data: {
         kycProfileId: kycProfile.id,
@@ -666,6 +675,7 @@ async function main() {
     let bridgeApiCalls = 0;
     let realImagesUploaded = 0;
     let validUrlsGenerated = 0;
+    let debugInfoSaved = 0;
 
     for (const userData of SAMPLE_USERS) {
       const result = await createTestUser(userData);
@@ -674,6 +684,7 @@ async function main() {
         validUrlsGenerated++; // Siempre generamos URLs válidas
         if (result.bridgeResponse) {
           bridgeApiCalls++;
+          debugInfoSaved++; // Contar perfiles con info de debugging
         }
         if (supabaseAdmin) {
           realImagesUploaded++;
@@ -690,20 +701,25 @@ async function main() {
       `🔗 Llamadas exitosas a Bridge API: ${bridgeApiCalls}/${createdCount}`
     );
     console.log(
+      `🐛 Perfiles con debug info guardado: ${debugInfoSaved}/${createdCount}`
+    );
+    console.log(
       `📁 Perfiles con imágenes subidas: ${realImagesUploaded}/${createdCount}`
     );
     console.log(
-      `🔗 Perfiles con URLs válidas de Supabase: ${validUrlsGenerated}/${createdCount}`
+      `🔗 Perfiles con rutas de Supabase: ${validUrlsGenerated}/${createdCount}`
     );
 
     console.log(`\n🎯 MEJORAS IMPLEMENTADAS:`);
     console.log(`   ✅ Mapeo automático Bridge API status → KYC enum`);
-    console.log(`   ✅ URLs válidas de Supabase (NO más mock-url.com)`);
+    console.log(`   ✅ Rutas relativas de Supabase (compatible con frontend)`);
     console.log(`   ✅ Subida real de imágenes (cuando hay Service Key)`);
     console.log(`   ✅ Mapeo real de respuesta Bridge API (no hardcodeado)`);
     console.log(`   ✅ Timestamps desde Bridge API`);
     console.log(`   ✅ Capabilities desde Bridge API`);
     console.log(`   ✅ Razones de rechazo desde Bridge API`);
+    console.log(`   🐛 Debug info completo guardado en bridgeRawResponse`);
+    console.log(`   ✅ Endorsements con requirements detallados`);
 
     console.log(
       `\n🎯 Ahora puedes acceder al dashboard KYC como super admin para revisar estos perfiles con datos reales.`

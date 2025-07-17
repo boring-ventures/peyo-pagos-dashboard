@@ -8,7 +8,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -22,14 +28,26 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  RefreshCw,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/use-toast";
 import type { ProfileWithKYC, KYCProfileWithRelations } from "@/types/kyc";
+
+interface EndorsementRequirements {
+  complete?: string[];
+  pending?: string[];
+  issues?: string[];
+  missing?: string | null;
+}
 import {
   KYC_STATUS_LABELS,
   USER_ROLE_LABELS,
   USER_STATUS_LABELS,
+  ENDORSEMENT_TYPE_LABELS,
+  ENDORSEMENT_STATUS_LABELS,
 } from "@/types/kyc";
 
 interface KYCDetailsModalProps {
@@ -46,6 +64,7 @@ export function KYCDetailsModal({
   const [kycDetails, setKycDetails] = useState<KYCProfileWithRelations | null>(
     null
   );
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const fetchKYCDetails = useCallback(async () => {
     try {
@@ -58,6 +77,54 @@ export function KYCDetailsModal({
       console.error("Error fetching KYC details:", error);
     }
   }, [profile.id]);
+
+  const handleRefreshFromBridge = async () => {
+    if (!profile.kycProfile?.bridgeCustomerId) {
+      toast({
+        title: "Error",
+        description: "No se encontró Customer ID de Bridge Protocol",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsRefreshing(true);
+    try {
+      const response = await fetch(`/api/kyc/${profile.id}/refresh`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Error al refrescar datos");
+      }
+
+      toast({
+        title: "Datos actualizados",
+        description: `${data.message}. ${data.updatedFields} campos actualizados.`,
+      });
+
+      // Refresh the KYC details after successful update
+      await fetchKYCDetails();
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Error al refrescar datos desde Bridge Protocol";
+      console.error("Error refreshing from Bridge:", error);
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     if (open && profile.kycProfile) {
@@ -112,10 +179,30 @@ export function KYCDetailsModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[80vh] p-8">
         <DialogHeader>
-          <DialogTitle>Detalles de KYC - {getUserDisplayName()}</DialogTitle>
-          <DialogDescription>
-            Información completa del perfil y verificación KYC del usuario
-          </DialogDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <DialogTitle>
+                Detalles de KYC - {getUserDisplayName()}
+              </DialogTitle>
+              <DialogDescription>
+                Información completa del perfil y verificación KYC del usuario
+              </DialogDescription>
+            </div>
+            {profile.kycProfile?.bridgeCustomerId && (
+              <Button
+                onClick={handleRefreshFromBridge}
+                disabled={isRefreshing}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <RefreshCw
+                  className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
+                />
+                {isRefreshing ? "Actualizando..." : "Refrescar desde Bridge"}
+              </Button>
+            )}
+          </div>
         </DialogHeader>
 
         <ScrollArea className="max-h-[70vh]">
@@ -173,11 +260,13 @@ export function KYCDetailsModal({
               </Card>
             ) : (
               <Tabs defaultValue="overview" className="space-y-6">
-                <TabsList className="grid w-full grid-cols-4 p-1">
+                <TabsList className="grid w-full grid-cols-6 p-1">
                   <TabsTrigger value="overview">Resumen</TabsTrigger>
                   <TabsTrigger value="personal">Personal</TabsTrigger>
                   <TabsTrigger value="documents">Documentos</TabsTrigger>
                   <TabsTrigger value="verification">Verificación</TabsTrigger>
+                  <TabsTrigger value="endorsements">Endorsements</TabsTrigger>
+                  <TabsTrigger value="debug">Debug</TabsTrigger>
                 </TabsList>
 
                 {/* Overview Tab */}
@@ -268,6 +357,69 @@ export function KYCDetailsModal({
                         )}
                       </CardContent>
                     </Card>
+
+                    {/* Endorsements */}
+                    {kycDetails?.endorsements &&
+                      kycDetails.endorsements.length > 0 && (
+                        <Card className="md:col-span-2">
+                          <CardHeader>
+                            <CardTitle className="text-sm font-medium flex items-center">
+                              <Shield className="w-4 h-4 mr-2" />
+                              Endorsements Bridge Protocol
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            {kycDetails.endorsements.map((endorsement) => (
+                              <div
+                                key={endorsement.id}
+                                className="flex items-center justify-between p-3 border rounded-lg"
+                              >
+                                <div className="flex items-center space-x-3">
+                                  <Badge
+                                    variant="outline"
+                                    className="font-medium"
+                                  >
+                                    {ENDORSEMENT_TYPE_LABELS[endorsement.name]}
+                                  </Badge>
+                                  <Badge
+                                    variant={
+                                      endorsement.status === "approved"
+                                        ? "default"
+                                        : endorsement.status === "revoked"
+                                          ? "destructive"
+                                          : "secondary"
+                                    }
+                                    className={
+                                      endorsement.status === "approved"
+                                        ? "bg-green-50 text-green-700 border-green-200"
+                                        : ""
+                                    }
+                                  >
+                                    {
+                                      ENDORSEMENT_STATUS_LABELS[
+                                        endorsement.status
+                                      ]
+                                    }
+                                  </Badge>
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {endorsement.requirements &&
+                                    typeof endorsement.requirements ===
+                                      "object" &&
+                                    "complete" in endorsement.requirements && (
+                                      <span>
+                                        {(
+                                          endorsement.requirements as EndorsementRequirements
+                                        ).complete?.length || 0}{" "}
+                                        completados
+                                      </span>
+                                    )}
+                                </div>
+                              </div>
+                            ))}
+                          </CardContent>
+                        </Card>
+                      )}
                   </div>
                 </TabsContent>
 
@@ -657,6 +809,265 @@ export function KYCDetailsModal({
                               )
                             )}
                           </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Endorsements Tab */}
+                <TabsContent
+                  value="endorsements"
+                  className="space-y-6 p-4 bg-muted/20 rounded-lg"
+                >
+                  {kycDetails?.endorsements &&
+                  kycDetails.endorsements.length > 0 ? (
+                    <div className="space-y-4">
+                      {kycDetails.endorsements.map((endorsement) => (
+                        <Card key={endorsement.id}>
+                          <CardHeader>
+                            <div className="flex items-center justify-between">
+                              <CardTitle className="text-lg flex items-center">
+                                <Shield className="w-5 h-5 mr-2" />
+                                {ENDORSEMENT_TYPE_LABELS[endorsement.name]}
+                              </CardTitle>
+                              <Badge
+                                variant={
+                                  endorsement.status === "approved"
+                                    ? "default"
+                                    : endorsement.status === "revoked"
+                                      ? "destructive"
+                                      : "secondary"
+                                }
+                                className={
+                                  endorsement.status === "approved"
+                                    ? "bg-green-50 text-green-700 border-green-200"
+                                    : ""
+                                }
+                              >
+                                {ENDORSEMENT_STATUS_LABELS[endorsement.status]}
+                              </Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            {endorsement.requirements &&
+                              typeof endorsement.requirements === "object" && (
+                                <div className="space-y-4">
+                                  {/* Completados */}
+                                  {"complete" in endorsement.requirements &&
+                                    (
+                                      endorsement.requirements as EndorsementRequirements
+                                    ).complete &&
+                                    (
+                                      endorsement.requirements as EndorsementRequirements
+                                    ).complete!.length > 0 && (
+                                      <div>
+                                        <h4 className="font-medium text-green-600 mb-2">
+                                          ✅ Requisitos Completados (
+                                          {
+                                            (
+                                              endorsement.requirements as EndorsementRequirements
+                                            ).complete!.length
+                                          }
+                                          )
+                                        </h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                          {(
+                                            endorsement.requirements as EndorsementRequirements
+                                          ).complete!.map(
+                                            (req: string, index: number) => (
+                                              <Badge
+                                                key={index}
+                                                variant="outline"
+                                                className="justify-start bg-green-50 text-green-700 border-green-200"
+                                              >
+                                                {req
+                                                  .replace(/_/g, " ")
+                                                  .replace(/\b\w/g, (l) =>
+                                                    l.toUpperCase()
+                                                  )}
+                                              </Badge>
+                                            )
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                  {/* Pendientes */}
+                                  {"pending" in endorsement.requirements &&
+                                    (
+                                      endorsement.requirements as EndorsementRequirements
+                                    ).pending &&
+                                    (
+                                      endorsement.requirements as EndorsementRequirements
+                                    ).pending!.length > 0 && (
+                                      <div>
+                                        <h4 className="font-medium text-yellow-600 mb-2">
+                                          ⏳ Requisitos Pendientes (
+                                          {
+                                            (
+                                              endorsement.requirements as EndorsementRequirements
+                                            ).pending!.length
+                                          }
+                                          )
+                                        </h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                          {(
+                                            endorsement.requirements as EndorsementRequirements
+                                          ).pending!.map(
+                                            (req: string, index: number) => (
+                                              <Badge
+                                                key={index}
+                                                variant="outline"
+                                                className="justify-start bg-yellow-50 text-yellow-700 border-yellow-200"
+                                              >
+                                                {req
+                                                  .replace(/_/g, " ")
+                                                  .replace(/\b\w/g, (l) =>
+                                                    l.toUpperCase()
+                                                  )}
+                                              </Badge>
+                                            )
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                  {/* Issues */}
+                                  {"issues" in endorsement.requirements &&
+                                    (
+                                      endorsement.requirements as EndorsementRequirements
+                                    ).issues &&
+                                    (
+                                      endorsement.requirements as EndorsementRequirements
+                                    ).issues!.length > 0 && (
+                                      <div>
+                                        <h4 className="font-medium text-red-600 mb-2">
+                                          ❌ Issues (
+                                          {
+                                            (
+                                              endorsement.requirements as EndorsementRequirements
+                                            ).issues!.length
+                                          }
+                                          )
+                                        </h4>
+                                        <div className="grid grid-cols-1 gap-2">
+                                          {(
+                                            endorsement.requirements as EndorsementRequirements
+                                          ).issues!.map(
+                                            (issue: string, index: number) => (
+                                              <Badge
+                                                key={index}
+                                                variant="destructive"
+                                                className="justify-start"
+                                              >
+                                                {issue
+                                                  .replace(/_/g, " ")
+                                                  .replace(/\b\w/g, (l) =>
+                                                    l.toUpperCase()
+                                                  )}
+                                              </Badge>
+                                            )
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                  {/* Missing */}
+                                  {"missing" in endorsement.requirements &&
+                                    endorsement.requirements.missing !==
+                                      null && (
+                                      <div>
+                                        <h4 className="font-medium text-gray-600 mb-2">
+                                          🔍 Información Faltante
+                                        </h4>
+                                        <Badge
+                                          variant="outline"
+                                          className="bg-gray-50 text-gray-700 border-gray-200"
+                                        >
+                                          {(
+                                            endorsement.requirements
+                                              .missing as string
+                                          )
+                                            .replace(/_/g, " ")
+                                            .replace(/\b\w/g, (l) =>
+                                              l.toUpperCase()
+                                            )}
+                                        </Badge>
+                                      </div>
+                                    )}
+                                </div>
+                              )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <Card>
+                      <CardContent className="text-center py-8">
+                        <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium mb-2">
+                          Sin Endorsements
+                        </h3>
+                        <p className="text-muted-foreground">
+                          No hay endorsements de Bridge Protocol para este
+                          perfil KYC
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </TabsContent>
+
+                {/* Debug Tab */}
+                <TabsContent
+                  value="debug"
+                  className="space-y-6 p-4 bg-muted/20 rounded-lg"
+                >
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm font-medium flex items-center">
+                        <FileText className="w-4 h-4 mr-2" />
+                        Bridge Protocol - Respuesta Completa
+                      </CardTitle>
+                      <CardDescription>
+                        Información de debugging con la respuesta completa de la
+                        API de Bridge Protocol
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {profile.kycProfile.bridgeRawResponse ? (
+                        <div className="space-y-4">
+                          <div className="bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto max-h-96">
+                            <pre className="text-xs whitespace-pre-wrap">
+                              {JSON.stringify(
+                                profile.kycProfile.bridgeRawResponse,
+                                null,
+                                2
+                              )}
+                            </pre>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            <p>
+                              <strong>Bridge Customer ID:</strong>{" "}
+                              {profile.kycProfile.bridgeCustomerId ||
+                                "No asignado"}
+                            </p>
+                            <p>
+                              <strong>Última actualización:</strong>{" "}
+                              {formatDate(profile.kycProfile.updatedAt)}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center py-8">
+                          <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                          <h3 className="text-lg font-medium mb-2">
+                            Sin datos de Bridge Protocol
+                          </h3>
+                          <p className="text-muted-foreground">
+                            No se ha registrado ninguna respuesta de la API de
+                            Bridge Protocol para este perfil KYC
+                          </p>
                         </div>
                       )}
                     </CardContent>

@@ -62,7 +62,7 @@ function generateMockImageBuffer(): Buffer {
   return Buffer.from(base64, "base64");
 }
 
-// Función para subir imagen a Supabase
+// Función para subir imagen a Supabase (retorna solo la ruta relativa)
 async function uploadImageToSupabase(
   profileId: string,
   documentType: string,
@@ -81,23 +81,19 @@ async function uploadImageToSupabase(
         });
 
       if (!uploadError) {
-        const {
-          data: { publicUrl },
-        } = supabaseAdmin.storage.from(supabaseBucket).getPublicUrl(filePath);
-        return publicUrl;
+        console.log(`✅ Imagen subida exitosamente: ${filePath}`);
+        return filePath; // ✅ Retornar solo la ruta relativa
+      } else {
+        console.warn(`⚠️  Error subiendo imagen: ${uploadError.message}`);
       }
     }
 
-    // Fallback: generar URL válida aunque no se suba
-    const {
-      data: { publicUrl },
-    } = supabaseClient.storage.from(supabaseBucket).getPublicUrl(filePath);
-    return publicUrl;
+    // Fallback: retornar solo la ruta relativa aunque no se suba
+    console.log(`📋 Ruta generada (archivo no subido): ${filePath}`);
+    return filePath; // ✅ Retornar solo la ruta relativa
   } catch (error) {
-    const {
-      data: { publicUrl },
-    } = supabaseClient.storage.from(supabaseBucket).getPublicUrl(filePath);
-    return publicUrl;
+    console.warn(`⚠️  Error en proceso de subida: ${error}`);
+    return filePath; // ✅ Retornar solo la ruta relativa
   }
 }
 
@@ -766,6 +762,9 @@ async function main() {
 
     console.log(
       `\n💡 Estos datos permiten probar todos los flujos de rechazo del dashboard KYC.`
+    );
+    console.log(
+      `📄 Todas las imágenes se almacenan como rutas relativas compatibles con el frontend.`
     );
   } catch (error: any) {
     console.error("❌ Error general en el seeder:", error.message);

@@ -49,6 +49,9 @@ export async function GET(
             rejectionReasons: {
               orderBy: { createdAt: "desc" },
             },
+            endorsements: {
+              orderBy: { createdAt: "desc" },
+            },
           },
         },
       },
