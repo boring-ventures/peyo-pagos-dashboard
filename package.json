@@ -10,7 +10,8 @@
     "seed:kyc": "tsx scripts/seed-kyc-data.ts",
     "seed:rejection-scenarios": "tsx scripts/seed-kyc-rejection-scenarios.ts",
     "clean:kyc": "tsx scripts/clean-kyc-data.ts",
-    "check:kyc": "tsx scripts/check-setup.ts"
+    "check:kyc": "tsx scripts/check-setup.ts",
+    "seed:existing-bridge-user": "tsx scripts/seed-existing-bridge-user.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^4.1.0",
