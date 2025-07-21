@@ -14,6 +14,8 @@ import {
   Calendar,
   Activity,
   Tag,
+  RotateCw,
+  Database,
 } from "lucide-react";
 import {
   Card,
@@ -29,18 +31,20 @@ import { toast } from "@/components/ui/use-toast";
 import { Separator } from "@/components/ui/separator";
 import type {
   UserWalletApiResponse,
-  BridgeWallet,
+  Wallet as InternalWallet,
   UserWithWallets,
+  WalletSyncResponse,
 } from "@/types/wallet";
-import { SUPPORTED_CHAINS } from "@/types/wallet";
+import { SUPPORTED_CHAINS, WALLET_TAGS } from "@/types/wallet";
 
 export default function UserWalletsPage() {
   const params = useParams();
   const router = useRouter();
   const { profile } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [user, setUser] = useState<UserWithWallets | null>(null);
-  const [wallets, setWallets] = useState<BridgeWallet[]>([]);
+  const [wallets, setWallets] = useState<InternalWallet[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const userId = params.userId as string;
@@ -82,6 +86,56 @@ export default function UserWalletsPage() {
     setRefreshKey((prev) => prev + 1);
   };
 
+  const handleSyncWallets = async () => {
+    if (!user?.kycProfile?.bridgeCustomerId) {
+      toast({
+        title: "Error",
+        description:
+          "Este usuario no tiene un ID de cliente Bridge configurado",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSyncing(true);
+    try {
+      const response = await fetch("/api/wallets/sync", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          profileId: user.id,
+          bridgeCustomerId: user.kycProfile.bridgeCustomerId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Error al sincronizar wallets");
+      }
+
+      const result: WalletSyncResponse = await response.json();
+
+      toast({
+        title: "Sincronización completada",
+        description: result.message,
+      });
+
+      // Refresh the wallets data
+      handleRefresh();
+    } catch (error) {
+      toast({
+        title: "Error de sincronización",
+        description:
+          error instanceof Error ? error.message : "Error desconocido",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const handleCopyAddress = (address: string) => {
     navigator.clipboard.writeText(address);
     toast({
@@ -104,6 +158,16 @@ export default function UserWalletsPage() {
         name: chain,
         displayName: chain.charAt(0).toUpperCase() + chain.slice(1),
         color: "#8B5CF6",
+      }
+    );
+  };
+
+  const getWalletTagInfo = (tag: string) => {
+    return (
+      WALLET_TAGS[tag as keyof typeof WALLET_TAGS] || {
+        label: tag,
+        description: "Tag personalizado",
+        color: "gray",
       }
     );
   };
@@ -231,15 +295,31 @@ export default function UserWalletsPage() {
             </p>
           </div>
         </div>
-        <Button
-          onClick={handleRefresh}
-          variant="outline"
-          size="sm"
-          className="flex items-center gap-2"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Actualizar
-        </Button>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-xs flex items-center gap-1">
+            <Database className="h-3 w-3" />
+            Base de Datos Local
+          </Badge>
+          <Button
+            onClick={handleSyncWallets}
+            variant="outline"
+            size="sm"
+            disabled={syncing || !user.kycProfile?.bridgeCustomerId}
+            className="flex items-center gap-2"
+          >
+            <RotateCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+            {syncing ? "Sincronizando..." : "Sincronizar"}
+          </Button>
+          <Button
+            onClick={handleRefresh}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Actualizar
+          </Button>
+        </div>
       </div>
 
       {/* User Information */}
@@ -352,9 +432,21 @@ export default function UserWalletsPage() {
               <div className="text-center py-12">
                 <Wallet className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium mb-2">No hay wallets</h3>
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground mb-4">
                   Este usuario aún no tiene wallets configuradas en el sistema.
                 </p>
+                {user.kycProfile?.bridgeCustomerId && (
+                  <Button
+                    onClick={handleSyncWallets}
+                    disabled={syncing}
+                    className="flex items-center gap-2"
+                  >
+                    <RotateCw
+                      className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`}
+                    />
+                    {syncing ? "Sincronizando..." : "Sincronizar desde Bridge"}
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -362,6 +454,7 @@ export default function UserWalletsPage() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-1">
             {wallets.map((wallet) => {
               const chainInfo = getChainInfo(wallet.chain);
+              const tagInfo = getWalletTagInfo(wallet.walletTag);
               return (
                 <Card
                   key={wallet.id}
@@ -379,24 +472,29 @@ export default function UserWalletsPage() {
                             {chainInfo.displayName}
                           </CardTitle>
                           <CardDescription>
-                            Wallet ID: {wallet.id}
+                            Wallet ID: {wallet.bridgeWalletId}
                           </CardDescription>
                         </div>
                       </div>
-                      {wallet.tags.length > 0 && (
-                        <div className="flex gap-1">
-                          {wallet.tags.map((tag, index) => (
-                            <Badge
-                              key={index}
-                              variant="outline"
-                              className="text-xs"
-                            >
-                              <Tag className="w-3 h-3 mr-1" />
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
+                      <div className="flex gap-2">
+                        <Badge variant="secondary" className="text-xs">
+                          <Tag className="w-3 h-3 mr-1" />
+                          {tagInfo.label}
+                        </Badge>
+                        {wallet.bridgeTags.length > 0 && (
+                          <div className="flex gap-1">
+                            {wallet.bridgeTags.map((tag, index) => (
+                              <Badge
+                                key={index}
+                                variant="outline"
+                                className="text-xs"
+                              >
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -423,28 +521,43 @@ export default function UserWalletsPage() {
 
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
-                        <label className="text-muted-foreground">Creada</label>
+                        <label className="text-muted-foreground">
+                          Creada en Bridge
+                        </label>
                         <div className="flex items-center gap-1 mt-1">
                           <Calendar className="h-3 w-3" />
                           <span>
-                            {new Date(wallet.created_at).toLocaleDateString(
-                              "es-ES"
-                            )}
+                            {wallet.bridgeCreatedAt
+                              ? new Date(
+                                  wallet.bridgeCreatedAt
+                                ).toLocaleDateString("es-ES")
+                              : "N/A"}
                           </span>
                         </div>
                       </div>
                       <div>
                         <label className="text-muted-foreground">
-                          Actualizada
+                          Última actualización
                         </label>
                         <div className="flex items-center gap-1 mt-1">
                           <Activity className="h-3 w-3" />
                           <span>
-                            {new Date(wallet.updated_at).toLocaleDateString(
+                            {new Date(wallet.updatedAt).toLocaleDateString(
                               "es-ES"
                             )}
                           </span>
                         </div>
+                      </div>
+                    </div>
+
+                    <div className="text-sm">
+                      <label className="text-muted-foreground">Estado</label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge
+                          variant={wallet.isActive ? "default" : "secondary"}
+                        >
+                          {wallet.isActive ? "Activa" : "Inactiva"}
+                        </Badge>
                       </div>
                     </div>
                   </CardContent>

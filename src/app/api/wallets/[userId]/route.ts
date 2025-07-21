@@ -4,90 +4,11 @@ import { cookies } from "next/headers";
 import prisma from "@/lib/prisma";
 import type {
   UserWalletApiResponse,
-  BridgeWalletResponse,
-  BridgeWallet,
   UserWithWallets,
+  Wallet,
 } from "@/types/wallet";
 
-const bridgeApiKey = process.env.BRIDGE_API_KEY;
-const bridgeApiUrl =
-  process.env.BRIDGE_API_URL || "https://api.sandbox.bridge.xyz/v0";
-
-// Helper function to generate mock wallet data
-function generateMockWallets(userId: string): BridgeWallet[] {
-  const chains = ["solana", "base"];
-  const walletCount = Math.floor(Math.random() * 3) + 1; // 1-3 wallets
-
-  const mockWallets: BridgeWallet[] = [];
-
-  for (let i = 0; i < walletCount; i++) {
-    const chain = chains[Math.floor(Math.random() * chains.length)];
-    const mockAddress = `${chain}_address_${userId.slice(-8)}_${i + 1}`;
-
-    mockWallets.push({
-      id: `wallet_${userId.slice(-8)}_${i + 1}`,
-      chain,
-      address: mockAddress,
-      tags: i === 0 ? ["primary"] : [], // First wallet marked as primary
-      created_at: new Date(
-        Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000
-      ).toISOString(),
-      updated_at: new Date(
-        Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000
-      ).toISOString(),
-    });
-  }
-
-  return mockWallets;
-}
-
-// Helper function to fetch wallets from Bridge API
-async function fetchUserWallets(customerId: string): Promise<BridgeWallet[]> {
-  if (!bridgeApiKey) {
-    // Return simulated data if no API key
-    console.log("⚠️ No Bridge API key found - returning mock wallet data");
-    return generateMockWallets(customerId);
-  }
-
-  try {
-    console.log(`🔄 Fetching wallets for customer: ${customerId}`);
-    const response = await fetch(
-      `${bridgeApiUrl}/customers/${customerId}/wallets`,
-      {
-        headers: {
-          "Api-Key": bridgeApiKey,
-          accept: "application/json",
-        },
-      }
-    );
-
-    if (!response.ok) {
-      console.warn(
-        `Bridge API error for customer ${customerId}: ${response.status}`
-      );
-
-      // Return mock data for 404s or API errors
-      if (response.status === 404) {
-        console.log("Customer not found in Bridge, returning empty wallets");
-        return [];
-      }
-
-      console.log("API error, returning mock wallet data");
-      return generateMockWallets(customerId);
-    }
-
-    const data: BridgeWalletResponse = await response.json();
-    console.log(`✅ Found ${data.count} wallets for customer ${customerId}`);
-
-    return data.data || [];
-  } catch (error) {
-    console.error(`Error fetching wallets for customer ${customerId}:`, error);
-    console.log("Network error, returning mock wallet data");
-    return generateMockWallets(customerId);
-  }
-}
-
-// GET: Fetch detailed wallet information for a specific user
+// GET: Fetch detailed wallet information for a specific user from database
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
@@ -129,9 +50,20 @@ export async function GET(
       );
     }
 
-    // Find the user profile
+    // Find the user profile with wallets and KYC info
     const userProfile = await prisma.profile.findUnique({
       where: { userId: userId },
+      include: {
+        wallets: {
+          where: { isActive: true },
+          orderBy: { createdAt: "desc" },
+        },
+        kycProfile: {
+          select: {
+            bridgeCustomerId: true,
+          },
+        },
+      },
     });
 
     if (!userProfile) {
@@ -143,11 +75,8 @@ export async function GET(
       id: userProfile.id,
       name: `${userProfile.firstName} ${userProfile.lastName}`,
       email: userProfile.email,
+      walletsCount: userProfile.wallets.length,
     });
-
-    // Fetch wallets from Bridge API
-    console.log("🔄 User Wallets API - Fetching wallets from Bridge API");
-    const wallets = await fetchUserWallets(userId);
 
     // Convert profile to UserWithWallets format
     const user: UserWithWallets = {
@@ -160,17 +89,18 @@ export async function GET(
       status: userProfile.status,
       createdAt: userProfile.createdAt,
       updatedAt: userProfile.updatedAt,
-      wallets: wallets,
-      walletsCount: wallets.length,
+      wallets: userProfile.wallets as Wallet[],
+      walletsCount: userProfile.wallets.length,
+      kycProfile: userProfile.kycProfile,
     };
 
     const response: UserWalletApiResponse = {
       user,
-      wallets,
+      wallets: userProfile.wallets as Wallet[],
     };
 
     console.log(
-      `✅ User Wallets API - Returning ${wallets.length} wallets for user ${userId}`
+      `✅ User Wallets API - Returning ${userProfile.wallets.length} wallets for user ${userId}`
     );
     return NextResponse.json(response);
   } catch (error) {

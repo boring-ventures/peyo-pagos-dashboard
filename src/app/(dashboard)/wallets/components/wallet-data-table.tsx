@@ -49,7 +49,9 @@ import type {
   PaginationMeta,
   WalletApiResponse,
   WalletFilters,
+  Wallet,
 } from "@/types/wallet";
+import { SUPPORTED_CHAINS, WALLET_TAGS } from "@/types/wallet";
 
 type SortConfig = {
   field: string;
@@ -82,7 +84,7 @@ export function WalletDataTable({ filters, refreshKey }: WalletDataTableProps) {
         limit: pageSize.toString(),
         sortBy: sortConfig.field,
         sortOrder: sortConfig.direction,
-        includeCounts: "true", // Always include wallet counts
+        includeWallets: "true", // Use database wallets instead of Bridge API counts
         ...filters,
       });
 
@@ -152,20 +154,29 @@ export function WalletDataTable({ filters, refreshKey }: WalletDataTableProps) {
   };
 
   const getUserInitials = (user: UserWithWallets) => {
-    if (user.firstName || user.lastName) {
-      return [user.firstName?.[0], user.lastName?.[0]]
-        .filter(Boolean)
-        .join("")
-        .toUpperCase();
-    }
-    return user.email?.[0]?.toUpperCase() || "U";
+    const name = getUserDisplayName(user);
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const getWalletChains = (wallets: Wallet[]) => {
+    const chains = new Set(wallets.map((wallet) => wallet.chain));
+    return Array.from(chains);
+  };
+
+  const getWalletTags = (wallets: Wallet[]) => {
+    const tags = new Set(wallets.map((wallet) => wallet.walletTag));
+    return Array.from(tags);
   };
 
   const getWalletCountBadgeVariant = (count: number) => {
     if (count === 0) return "secondary";
-    if (count === 1) return "outline";
-    if (count <= 3) return "default";
-    return "destructive"; // Many wallets might need attention
+    if (count <= 2) return "default";
+    return "destructive";
   };
 
   const getSortIcon = (field: string) => {
@@ -314,10 +325,41 @@ export function WalletDataTable({ filters, refreshKey }: WalletDataTableProps) {
                       {user.walletsCount || 0}
                     </Badge>
                     {(user.walletsCount || 0) > 0 && (
+                      <div className="flex flex-wrap gap-1 ml-2">
+                        {/* Show wallet chains */}
+                        {user.wallets &&
+                          getWalletChains(user.wallets).map((chain) => (
+                            <Badge
+                              key={chain}
+                              variant="outline"
+                              className="text-xs"
+                              style={{
+                                borderColor:
+                                  SUPPORTED_CHAINS[chain]?.color || "#gray",
+                              }}
+                            >
+                              {SUPPORTED_CHAINS[chain]?.displayName || chain}
+                            </Badge>
+                          ))}
+                        {/* Show wallet tags */}
+                        {user.wallets &&
+                          getWalletTags(user.wallets).map((tag) => (
+                            <Badge
+                              key={tag}
+                              variant="secondary"
+                              className="text-xs"
+                            >
+                              {WALLET_TAGS[tag as keyof typeof WALLET_TAGS]
+                                ?.label || tag}
+                            </Badge>
+                          ))}
+                      </div>
+                    )}
+                    {(user.walletsCount || 0) > 0 && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-6 px-2 text-xs"
+                        className="h-6 px-2 text-xs ml-2"
                         onClick={() => handleViewWallets(user.userId)}
                       >
                         <Eye className="w-3 h-3 mr-1" />

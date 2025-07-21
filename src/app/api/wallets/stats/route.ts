@@ -1,13 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import prisma from "@/lib/prisma";
 import type { WalletStatsApiResponse } from "@/types/wallet";
 
 // GET: Fetch wallet statistics (admin only)
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    console.log("🔍 Wallet Stats API - Starting request");
+    console.log("📊 Wallet Stats API - Starting request");
 
     // Check authentication
     const supabase = createRouteHandlerClient({ cookies });
@@ -37,54 +37,126 @@ export async function GET() {
       );
     }
 
-    console.log("✅ Wallet Stats API - Authentication successful");
+    console.log("✅ Wallet Stats API - Fetching statistics from database");
 
-    // Get today's date range for recent activity
+    // Get current date for "today" calculations
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Get total user count (only USER role, not SUPERADMIN)
-    const totalUsers = await prisma.profile.count({
-      where: { role: "USER" },
+    // Fetch statistics from database
+    const [
+      totalWallets,
+      totalUsersWithWallets,
+      walletsByChain,
+      walletsByTag,
+      newWalletsToday,
+      usersWithMultipleWallets,
+    ] = await Promise.all([
+      // Total active wallets
+      prisma.wallet.count({
+        where: { isActive: true },
+      }),
+
+      // Total users with at least one wallet
+      prisma.profile.count({
+        where: {
+          role: "USER",
+          wallets: {
+            some: { isActive: true },
+          },
+        },
+      }),
+
+      // Wallets grouped by chain
+      prisma.wallet.groupBy({
+        by: ["chain"],
+        where: { isActive: true },
+        _count: { chain: true },
+      }),
+
+      // Wallets grouped by tag
+      prisma.wallet.groupBy({
+        by: ["walletTag"],
+        where: { isActive: true },
+        _count: { walletTag: true },
+      }),
+
+      // New wallets created today
+      prisma.wallet.count({
+        where: {
+          isActive: true,
+          createdAt: {
+            gte: today,
+          },
+        },
+      }),
+
+      // Users with multiple wallets
+      prisma.profile.count({
+        where: {
+          role: "USER",
+          wallets: {
+            some: { isActive: true },
+          },
+        },
+      }),
+    ]);
+
+    // Transform chain data
+    const walletsByChainMap: { [chain: string]: number } = {};
+    walletsByChain.forEach((item) => {
+      walletsByChainMap[item.chain] = item._count.chain;
     });
 
-    console.log(`📊 Wallet Stats API - Total users: ${totalUsers}`);
+    // Transform tag data
+    const walletsByTagMap = {
+      general_use: 0,
+      p2p: 0,
+    };
+    walletsByTag.forEach((item) => {
+      walletsByTagMap[item.walletTag] = item._count.walletTag;
+    });
 
-    // Since wallet data comes from Bridge API and we don't store it locally,
-    // we'll provide simulated statistics or basic counts
-    // In a real implementation, you might want to cache this data or
-    // make batch calls to Bridge API to get accurate statistics
+    // Count active chains
+    const activeChains = walletsByChain.length;
 
-    // For now, providing simulated statistics based on reasonable assumptions
-    const simulatedStats = {
-      totalUsersWithWallets: Math.floor(totalUsers * 0.65), // Assume 65% of users have wallets
-      totalWallets: Math.floor(totalUsers * 1.4), // Assume average 1.4 wallets per user
-      walletsByChain: {
-        solana: Math.floor(totalUsers * 0.45),
-        base: Math.floor(totalUsers * 0.25),
+    // Get users with multiple wallets count
+    const usersWithMultipleWalletsResult = await prisma.profile.findMany({
+      where: {
+        role: "USER",
       },
+      include: {
+        _count: {
+          select: {
+            wallets: {
+              where: { isActive: true },
+            },
+          },
+        },
+      },
+    });
+
+    const actualUsersWithMultipleWallets =
+      usersWithMultipleWalletsResult.filter(
+        (user) => user._count.wallets > 1
+      ).length;
+
+    const stats: WalletStatsApiResponse = {
+      totalUsersWithWallets,
+      totalWallets,
+      walletsByChain: walletsByChainMap,
+      walletsByTag: walletsByTagMap,
       recentActivity: {
-        newWalletsToday: Math.floor(Math.random() * 15) + 5, // Random 5-20 new wallets today
-        activeChains: 2, // Number of different chains being used (Solana + Base)
-        usersWithMultipleWallets: Math.floor(totalUsers * 0.25), // Assume 25% have multiple wallets
+        newWalletsToday,
+        activeChains,
+        usersWithMultipleWallets: actualUsersWithMultipleWallets,
       },
     };
 
-    const stats: WalletStatsApiResponse = simulatedStats;
-
-    console.log("📊 Wallet Stats API - Generated statistics:", stats);
-    console.log("✅ Wallet Stats API - Returning successful response");
-
+    console.log("✅ Wallet Stats API - Statistics generated:", stats);
     return NextResponse.json(stats);
   } catch (error) {
-    console.error("❌ Wallet Stats API - Detailed error:", error);
-    console.error(
-      "❌ Wallet Stats API - Error message:",
-      error instanceof Error ? error.message : "Unknown error"
-    );
-
+    console.error("❌ Wallet Stats API - Error:", error);
     return NextResponse.json(
       {
         error: "Internal server error",

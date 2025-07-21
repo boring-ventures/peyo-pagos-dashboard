@@ -52,6 +52,127 @@ function mapBridgeStatusToKYCStatus(bridgeStatus: string): string {
   return statusMapping[bridgeStatus] || "not_started";
 }
 
+// Función para generar direcciones de wallet realistas
+function generateWalletAddress(chain: string): string {
+  if (chain === "solana") {
+    // Solana addresses are base58 encoded, ~44 characters
+    const chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+    let address = "";
+    for (let i = 0; i < 44; i++) {
+      address += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return address;
+  } else if (chain === "base") {
+    // Base (Ethereum-compatible) addresses are hex, 42 characters starting with 0x
+    const hex = "0123456789abcdef";
+    let address = "0x";
+    for (let i = 0; i < 40; i++) {
+      address += hex.charAt(Math.floor(Math.random() * hex.length));
+    }
+    return address;
+  }
+  return "unknown_chain_address";
+}
+
+// Función para determinar el tag de wallet basado en el índice
+function getWalletTag(index: number): "general_use" | "p2p" {
+  // Asignar el primer wallet como general_use, el resto como p2p o general_use alternativamente
+  if (index === 0) return "general_use";
+  return index % 2 === 0 ? "general_use" : "p2p";
+}
+
+// Función para crear wallets para un usuario
+async function createWalletsForUser(
+  profile: any,
+  bridgeCustomerId: string | null
+) {
+  try {
+    const wallets = [];
+    const chains = ["solana", "base"];
+
+    // Crear entre 1-3 wallets por usuario
+    const walletCount = Math.floor(Math.random() * 3) + 1;
+
+    console.log(
+      `💳 Creando ${walletCount} wallets para ${profile.firstName}...`
+    );
+
+    for (let i = 0; i < walletCount; i++) {
+      const chain = chains[Math.floor(Math.random() * chains.length)];
+      const address = generateWalletAddress(chain);
+      const walletTag = getWalletTag(i);
+
+      // Generar Bridge wallet ID realista
+      const bridgeWalletId = `bridge_wallet_${generateUUID()}`;
+
+      // Tags de Bridge basados en el tipo de wallet
+      const bridgeTags =
+        walletTag === "p2p"
+          ? ["trading", "p2p"]
+          : walletTag === "general_use"
+            ? ["primary", "general"]
+            : [];
+
+      // Crear timestamps realistas (wallets creadas después del perfil)
+      const profileCreatedAt = new Date(profile.createdAt).getTime();
+      const walletCreatedAt = new Date(profileCreatedAt + (i + 1) * 300000); // 5 minutes apart
+      const walletUpdatedAt = new Date(
+        walletCreatedAt.getTime() + Math.random() * 86400000
+      ); // Updated within 24h
+
+      const walletData = {
+        profileId: profile.id,
+        walletTag,
+        bridgeWalletId,
+        chain: chain as "solana" | "base",
+        address,
+        bridgeTags,
+        bridgeCreatedAt: walletCreatedAt,
+        bridgeUpdatedAt: walletUpdatedAt,
+        isActive: true,
+        createdAt: walletCreatedAt,
+        updatedAt: walletUpdatedAt,
+      };
+
+      const wallet = await (prisma as any).wallet.create({
+        data: walletData,
+      });
+
+      wallets.push(wallet);
+
+      console.log(
+        `  ✅ Wallet ${i + 1}: ${chain} - ${walletTag} - ${address.slice(0, 8)}...`
+      );
+    }
+
+    console.log(
+      `💳 ${wallets.length} wallets creadas para ${profile.firstName}`
+    );
+    return wallets;
+  } catch (error: any) {
+    console.error(
+      `❌ Error creando wallets para ${profile.firstName}:`,
+      error.message
+    );
+    return [];
+  }
+}
+
+// Función para simular respuesta de wallets de Bridge API
+function generateBridgeWalletsResponse(wallets: any[]): any {
+  return {
+    count: wallets.length,
+    data: wallets.map((wallet) => ({
+      id: wallet.bridgeWalletId,
+      chain: wallet.chain,
+      address: wallet.address,
+      tags: wallet.bridgeTags,
+      created_at: wallet.bridgeCreatedAt.toISOString(),
+      updated_at: wallet.bridgeUpdatedAt.toISOString(),
+    })),
+  };
+}
+
 // Función para generar UUID v4
 function generateUUID(): string {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
@@ -65,7 +186,7 @@ function generateUUID(): string {
 function generateMockImageBuffer(): Buffer {
   // Imagen PNG de 100x100 con texto "KYC DOC"
   const base64 =
-    "iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAACXBIWXMAAAsTAAALEwEAmpwYAAAFPklEQVR4nO2dS2wUZRjGn5md3e622623lhYKFkqhINRWY0CjxhtqjBdiolGJGhONxpNoYjReEhONJkZjPBgTDzYxJl4SEw9GE28YL6hRwYsKKFqgFWq33e5u2+3uzM+MO9/OzndZZmdmdqd/k5ds25n5v+f5vv+87+3vW0IIIYQQQgghhBBCCCGEEEIIIYQQQgghhBBCCCGEEEIIIYQQQgghhBBCCCGEEEIIISQ8WJIkLZckqV2SpA5JkhplWW6QJKlOkqRaSZJqJEmqkSSpWpKkKkmSKiVJqrA+W24d02EdWyVJUrUsyxWyLI/JsjwsyzIvy/KwLMtDkiQNWceNyLI8LEvyiCzLI7IsD0uSNGT93xG7Hkxfsr6nwvp9ldbvrrJ+v8P6HQ7rGqy/xWH9XS2yLDfKstxq/Z2ttizLLbIst8qy3CLLcosta3yf9T3tltVhn7ftdXxnCF3wG9YtdGa/+/G//XE6Bs9f3bqgKNe6v9DvyqxzO+06d1ltoOKsNtRu/23t1t/bbv3t7bIs66bfO8sNi6ZpMklKJhNKoSBnGw2qJCVz/VyuK5VKDaVSqe4kJXsN59j/OzQ01JNMJnsxz9OnT3fHPaY6nU73JhKJHkwczJ6envZEItGTSCT6Mcdg5XI5rVKppLFyqVRKY+ahhDnOOjZjvwrOsc85z8fYx5g5tVpNJxKJJJZKJZNGbkMoiqJqRhxNV6tVVdM0H9YA5mg86zjmGLPdPqdd5074lbPONYD5jb9xD+b/N//3bXLLZVvPQMfhOJ8N1fmYuyGwJH1vOW0xhkwwwpIdFTBwJkOZzWa1EolEr20oKJNM0Y31/TJJ1/sT9vG4EQUNdBrm9+DGwH5YnI0uUCaTyRo1RqRsI0OOKBBEcP2w6KJkL1dM7Hee6y5YeU4hGz9iM0bfYh7+3mTSKdewOIetMFjBHo9uF6RSqaxtNL2I8qk0t80PN5Ct3x5EOjJllEql+nw24xAWWyCUfofGCX05+2cP4DiHgYW1vGC7AWm6ruKmf1AjHObOhJFJpVIGlgXyxMCNZddhTlR1aXECWcVEcpYkCyub+vUJ4+rT6bS1IJgxFd2MU6lUn7+SnDZdNIiA7WGYOdVoLp2rO2OEcOOJJ3/4i3fffe8bTwfYz5eHzUw4x3Ac8zicb37BpvY7WlmPfPXVV8xzfZuTz+e9xrTBBgpMo7Lc6qiCqAd8nzWZXo8gywDEGf5aOTywP40vv/zytPeT53kJIFYWYQ9lOC/POAEkNDZzwYUJYp5gIl9k2cyCwDwjdIW5mWRD6LPFcGGM48OMIFhQwqJA/jBkiWWEz6fzXJxjDbJA0OzBa97S7Oy0n58w5i8ZJWHGEdwwJGwowzfmVwfChZllzFIiWVh1CxgKZFw/jGHmIFGCMVZwn0Qj3DShY8tF3Hx/I4zZ2OJHgC/EUNhZM+Zg5sJtxqzsQcbUmDGxr53x6g8tnEGKO1PcYuyGK0YsHe5AtsNO6IjHe54EucaV5chaDWGIf4YE2ZD6YIgxZWaZY3Gm5vwOhgCWaUHhT1EM3zJzNhw44xjGHLNOl5OLnLpDWQgU7LYgOEWOCXaTJINXr/o8vDbVLCR4kA7Y3pjH4czYWnzUCrNZYYfXX/EE5z04U0ixuauwOy0qgYV6AHmNdWqtlZKAGXhDYFb9g7NYuMTHpbC6lz1PoOKJdY1jrCxD2cOaOGCxZx+gx42wjFAkKOyNJa3YpvMhfr3KiWRZaJB7lYYwmGOhiZWHqGDNRgkhhBBCCCGEEEIIIYQQQgghhBBCCCGEEEIIIYQQQgghhBBCCCGEEEIIIYQQQgghhBBCCCGEEEIIIYQQYlH/AwTsVsUdYSuqAAAAAElFTkSuQmCC";
+    "iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAACXBIWXMAAAsTAAALEwEAmpwYAAAFPklEQVR4nO2dS2wUZRjGn5md3e622623lhYKFkqhINRWY0CjxhtqjBdiolGJGhONxpNoYjReEhONJkZjPBgTDzYxJl4SEw9GE28YL6hRwYsKKFqgFWq33e5u2+3uzM+MO9/OzndZZmdmdqd/k5ds25n5v+f5vv+87+3vW0IIIYQQQgghhBBCCCGEEEIIIYQQQgghhBBCCCGEEEIIIYQQQgghhBBCCCGEEEIIISQ8WJIkLZckqV2SpA5JkhplWW6QJKlOkqRaSZJqJEmqkSSpWpKkKkmSKiVJqrA+W24d02EdWyVJUrUsyxWyLI/JsjwsyzIvy/KwLMtDkiQNWceNyLI8LEvyiCzLI7IsD0uSNGT93xG7Hkxfsr6nwvp9ldbvrrJ+v8P6HQ7rGqy/xWH9XS2yLDfKstxq/Z2ttizLLbIst8qy3CLLcosta3yf9T3tltVhn7ftdXxnCF3wG9YtdGa/+/G//XE6Bs9f3bqgKNe6v9DvyqxzO+06d1ltoOKsNtRu/23t1t/bbv3t7bIs66bfO8sNi6ZpMklKJhNKoSBnGw2qJCVz/VyuK5VKDaVSqe4kJXsN59j/OzQ01JNMJnsxz9OnT3fHPaY6nU73JhKJHkwczJ6envZEItGTSCT6Mcdg5XI5rVKppLFyqVRKY+ahhDnOOjZjvwrOsc85z8fYx5g5tVpNJxKJJZKJZNGbkMoiqJqRhxNV6tVVdM0H9YA5mg86zjmGLPdPqdd5074lbPONYD5jb9xD+b/N//3bXLLZVvPQMfhOJ8N1fmYuyGwJH1vOW0xhkwwwpIdFTBwJkOZzWa1EolEr20oKJNM0Y31/TJJ1/sT9vG4EQUNdBrm9+DGwH5YnI0uUCaTyRo1RqRsI0OOKBBEcP2w6KJkL1dM7Hee6y5YeU4hGz9iM0bfYh7+3mTSKdewOIetMFjBHo9uF6RSqaxtNL2I8qk0t80PN5Ct3x5EOjJllEql+nw24xAWWyCUfofGCX05+2cP4DiHgYW1vGC7AWm6ruKmf1AjHObOhJFJpVIGlgXyxMCNZddhTlR1aXECWcVEcpYkCyub+vUJ4+rT6bS1IJgxFd2MU6lUn7+SnDZdNIiA7WGYOdVoLp2rO2OEcOOJJ3/4i3fffe8bTwfYz5eHzUw4x3Ac8zicb37BpvY7WlmPfPXVV8xzfZuTz+e9xrTBBgpMo7Lc6qiCqAd8nzWZXo8gywDEGf5aOTywP40vv/zytPeT53kJIFYWYQ9lOC/POAEkNDZzwYUJYp5gIl9k2cyCwDwjdIW5mWRD6LPFcGGM48OMIFhQwqJA/jBkiWWEz6fzXJxjDbJA0OzBa97S7Oy0n58w5i8ZJWHGEdwwJGwowzfmVwfChZllzFIiWVh1CxgKZFw/jGHmIFGCMVZwn0Qj3DShY8tF3Hx/I4zZ2OJHgC/EUNhZM+Zg5sJtxqzsQcbUmDGxr53x6g8tnEGKO1PcYuyGK0YsHe5AtsNO6IjHe54EucaV5chaDWGIf4YE2ZD6YIgxZWaZY3Gm5vwOhgCWaUHhT1EM3zJzNhw44xjGHLNOl5OLnLpDWQgU7LYgOEWOCXaTJINXr/o8vDbVLCR4kA7Y3pjH4czYWnzUCrNZYYfXX/EE5z04U0ixuauwOy0qgYV6AHmNdWqtlZKAGXhDYFb9g7NYuMTHpbC6lz1PoOKJdY1jrCxD2cOaOGCxZx+gx42wjFAkKOyNJa3YpvMhfr3KiWRZaJB7lYYwmGOhiZWHqGDNRgkhhBBCCCGEEEIIIYQQQgghhBBCCCGEEEIIIYQQQgghhBBCCCGEEEIIIYQQQgghhBBCCCGEEEIIIYQQYlH/AwTsVsUdYSuqAAAAAElFTkSuQmCC";
   return Buffer.from(base64, "base64");
 }
 
@@ -743,6 +864,12 @@ async function createTestUser(userData: any) {
       mappedData.kycStatus
     );
 
+    // 11. Crear wallets para el usuario
+    const wallets = await createWalletsForUser(
+      profile,
+      mappedData.bridgeCustomerId
+    );
+
     console.log(
       `🎉 Datos completos: ${userData.firstName} ${userData.lastName} ${bridgeResponse ? "(con Bridge API)" : "(solo local)"}`
     );
@@ -750,7 +877,7 @@ async function createTestUser(userData: any) {
       `📊 Datos mapeados desde Bridge API: ${Object.keys(mappedData).length} campos`
     );
 
-    return { profile, kycProfile, bridgeResponse, mappedData, events };
+    return { profile, kycProfile, bridgeResponse, mappedData, events, wallets };
   } catch (error: any) {
     console.error(`❌ Error creando usuario ${userData.email}:`, error.message);
     return null;
@@ -786,6 +913,11 @@ async function main() {
     let validUrlsGenerated = 0;
     let debugInfoSaved = 0;
     let totalEvents = 0;
+    let totalWallets = 0;
+    let solanaWallets = 0;
+    let baseWallets = 0;
+    let generalUseWallets = 0;
+    let p2pWallets = 0;
 
     for (const userData of SAMPLE_USERS) {
       const result = await createTestUser(userData);
@@ -802,6 +934,15 @@ async function main() {
         if (result.events) {
           totalEvents += result.events.length;
         }
+        if (result.wallets) {
+          totalWallets += result.wallets.length;
+          result.wallets.forEach((wallet: any) => {
+            if (wallet.chain === "solana") solanaWallets++;
+            if (wallet.chain === "base") baseWallets++;
+            if (wallet.walletTag === "general_use") generalUseWallets++;
+            if (wallet.walletTag === "p2p") p2pWallets++;
+          });
+        }
       }
 
       // Pausa entre creaciones
@@ -811,6 +952,11 @@ async function main() {
     console.log(`\n✨ Seeder CORREGIDO completado!`);
     console.log(`📊 Perfiles de prueba creados: ${createdCount}`);
     console.log(`🎯 Eventos de flujo creados: ${totalEvents}`);
+    console.log(`💳 Wallets creadas: ${totalWallets}`);
+    console.log(`  - Solana: ${solanaWallets}`);
+    console.log(`  - Base: ${baseWallets}`);
+    console.log(`  - General Use: ${generalUseWallets}`);
+    console.log(`  - P2P: ${p2pWallets}`);
     console.log(
       `🔗 Llamadas exitosas a Bridge API: ${bridgeApiCalls}/${createdCount}`
     );
@@ -837,9 +983,13 @@ async function main() {
     console.log(
       `   🎯 Eventos de flujo del usuario (sign up → KYC → approval/rejection)`
     );
+    console.log(`   ✅ Creación de wallets para usuarios (Solana + Base)`);
+    console.log(`   ✅ Tags de wallets (general_use + p2p)`);
+    console.log(`   ✅ Direcciones de wallet realistas`);
+    console.log(`   ✅ Bridge wallet IDs únicos`);
 
     console.log(
-      `\n🎯 Ahora puedes acceder al dashboard KYC como super admin para revisar estos perfiles con datos reales.`
+      `\n🎯 Ahora puedes acceder al dashboard KYC y Wallets como super admin para revisar estos perfiles con datos reales.`
     );
   } catch (error: any) {
     console.error("❌ Error general en el seeder:", error.message);

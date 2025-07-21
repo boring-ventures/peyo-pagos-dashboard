@@ -1,10 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Search, X, Filter } from "lucide-react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -13,8 +11,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import type { WalletFilters } from "@/types/wallet";
-import { SUPPORTED_CHAINS } from "@/types/wallet";
+import { Search, Filter, X } from "lucide-react";
+import {
+  SUPPORTED_CHAINS,
+  WALLET_TAGS,
+  type WalletFilters,
+} from "@/types/wallet";
 
 interface WalletFiltersProps {
   filters: WalletFilters;
@@ -27,16 +29,29 @@ export function WalletFilters({
 }: WalletFiltersProps) {
   const [searchInput, setSearchInput] = useState(filters.search);
 
-  const handleFilterChange = (key: keyof WalletFilters, value: string) => {
-    onFiltersChange({
-      ...filters,
-      [key]: value,
-    });
+  // Debounced search
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      onFiltersChange({ ...filters, search: searchInput });
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchInput]);
+
+  const handleSearchChange = (value: string) => {
+    setSearchInput(value);
   };
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    handleFilterChange("search", searchInput);
+  const handleChainChange = (value: string) => {
+    onFiltersChange({ ...filters, chain: value });
+  };
+
+  const handleWalletTagChange = (value: string) => {
+    onFiltersChange({ ...filters, walletTag: value });
+  };
+
+  const handleHasWalletsChange = (value: string) => {
+    onFiltersChange({ ...filters, hasWallets: value });
   };
 
   const clearFilters = () => {
@@ -44,58 +59,65 @@ export function WalletFilters({
     onFiltersChange({
       chain: "all",
       hasWallets: "all",
+      walletTag: "all",
       search: "",
     });
   };
 
-  const hasActiveFilters = Object.values(filters).some(
-    (value) => value !== "" && value !== "all"
-  );
-  const activeFilterCount = Object.values(filters).filter(
-    (value) => value !== "" && value !== "all"
-  ).length;
+  const hasActiveFilters =
+    filters.chain !== "all" ||
+    filters.hasWallets !== "all" ||
+    filters.walletTag !== "all" ||
+    filters.search !== "";
 
   return (
     <div className="space-y-4">
-      {/* Search Bar */}
-      <form onSubmit={handleSearchSubmit} className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            placeholder="Buscar por nombre, email..."
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <Button type="submit" variant="outline">
-          Buscar
-        </Button>
-      </form>
+      {/* Search Input */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+        <Input
+          placeholder="Buscar por nombre, email..."
+          value={searchInput}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          className="pl-10"
+        />
+      </div>
 
       {/* Filter Controls */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {/* Chain Filter */}
         <div className="space-y-2">
-          <Label htmlFor="chain-filter">Blockchain</Label>
-          <Select
-            value={filters.chain}
-            onValueChange={(value) => handleFilterChange("chain", value)}
-          >
-            <SelectTrigger id="chain-filter">
-              <SelectValue placeholder="Todas las blockchains" />
+          <label className="text-sm font-medium">Blockchain</label>
+          <Select value={filters.chain} onValueChange={handleChainChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="Todas las chains" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todas las blockchains</SelectItem>
+              <SelectItem value="all">Todas las chains</SelectItem>
               {Object.entries(SUPPORTED_CHAINS).map(([key, chain]) => (
                 <SelectItem key={key} value={key}>
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: chain.color }}
-                    />
-                    {chain.displayName}
-                  </div>
+                  {chain.displayName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Wallet Tag Filter */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Tipo de Wallet</label>
+          <Select
+            value={filters.walletTag || "all"}
+            onValueChange={handleWalletTagChange}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Todos los tipos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los tipos</SelectItem>
+              {Object.entries(WALLET_TAGS).map(([key, tag]) => (
+                <SelectItem key={key} value={key}>
+                  {tag.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -104,12 +126,12 @@ export function WalletFilters({
 
         {/* Has Wallets Filter */}
         <div className="space-y-2">
-          <Label htmlFor="wallets-filter">Estado de Wallets</Label>
+          <label className="text-sm font-medium">Estado</label>
           <Select
             value={filters.hasWallets}
-            onValueChange={(value) => handleFilterChange("hasWallets", value)}
+            onValueChange={handleHasWalletsChange}
           >
-            <SelectTrigger id="wallets-filter">
+            <SelectTrigger>
               <SelectValue placeholder="Todos los usuarios" />
             </SelectTrigger>
             <SelectContent>
@@ -120,73 +142,51 @@ export function WalletFilters({
           </Select>
         </div>
 
-        {/* Clear Filters Button */}
+        {/* Clear Filters */}
         <div className="space-y-2">
-          <Label>&nbsp;</Label>
+          <label className="text-sm font-medium opacity-0">Acciones</label>
           <Button
             variant="outline"
             onClick={clearFilters}
             disabled={!hasActiveFilters}
             className="w-full"
           >
-            <X className="w-4 h-4 mr-2" />
+            <X className="h-4 w-4 mr-2" />
             Limpiar filtros
           </Button>
-        </div>
-
-        {/* Active Filters Count */}
-        <div className="space-y-2">
-          <Label>&nbsp;</Label>
-          <div className="flex items-center justify-center h-10">
-            {hasActiveFilters && (
-              <Badge variant="secondary" className="flex items-center gap-1">
-                <Filter className="w-3 h-3" />
-                {activeFilterCount} filtro{activeFilterCount > 1 ? "s" : ""}{" "}
-                activo{activeFilterCount > 1 ? "s" : ""}
-              </Badge>
-            )}
-          </div>
         </div>
       </div>
 
       {/* Active Filters Display */}
       {hasActiveFilters && (
         <div className="flex flex-wrap gap-2">
+          <span className="text-sm text-muted-foreground">
+            Filtros activos:
+          </span>
+
           {filters.search && (
-            <Badge variant="outline" className="flex items-center gap-1">
-              Búsqueda: &quot;{filters.search}&quot;
-              <button
-                onClick={() => {
-                  setSearchInput("");
-                  handleFilterChange("search", "");
-                }}
-                className="ml-1 hover:bg-muted rounded"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </Badge>
+            <Badge variant="secondary">Búsqueda: "{filters.search}"</Badge>
           )}
-          {filters.chain && filters.chain !== "all" && (
-            <Badge variant="outline" className="flex items-center gap-1">
-              Blockchain:{" "}
+
+          {filters.chain !== "all" && (
+            <Badge variant="secondary">
+              Chain:{" "}
               {SUPPORTED_CHAINS[filters.chain]?.displayName || filters.chain}
-              <button
-                onClick={() => handleFilterChange("chain", "all")}
-                className="ml-1 hover:bg-muted rounded"
-              >
-                <X className="w-3 h-3" />
-              </button>
             </Badge>
           )}
-          {filters.hasWallets && filters.hasWallets !== "all" && (
-            <Badge variant="outline" className="flex items-center gap-1">
+
+          {filters.walletTag && filters.walletTag !== "all" && (
+            <Badge variant="secondary">
+              Tipo:{" "}
+              {WALLET_TAGS[filters.walletTag as keyof typeof WALLET_TAGS]
+                ?.label || filters.walletTag}
+            </Badge>
+          )}
+
+          {filters.hasWallets !== "all" && (
+            <Badge variant="secondary">
+              Estado:{" "}
               {filters.hasWallets === "true" ? "Con wallets" : "Sin wallets"}
-              <button
-                onClick={() => handleFilterChange("hasWallets", "all")}
-                className="ml-1 hover:bg-muted rounded"
-              >
-                <X className="w-3 h-3" />
-              </button>
             </Badge>
           )}
         </div>

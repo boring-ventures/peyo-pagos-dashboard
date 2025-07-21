@@ -33,6 +33,16 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum WalletChain {
+  solana
+  base
+}
+
+enum WalletTag {
+  general_use
+  p2p
+}
+
 enum UserRole {
   USER
   SUPERADMIN
@@ -176,6 +186,7 @@ updatedAt     DateTime             @updatedAt
   // Relations
   kycProfile    KYCProfile?          // Only for USER role - Bridge Protocol integration
   events        Event[]              // Track user events
+  wallets       Wallet[]             // User's blockchain wallets
   
   @@index([userId])
   @@index([status])
@@ -379,5 +390,34 @@ model Event {
   @@index([module])
   @@index([createdAt])
   @@map("events")
+}
+
+model Wallet {
+  id            String      @id @default(cuid())
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  // Internal Wallet Management
+  profileId     String      @map("profile_id")
+  walletTag     WalletTag   @default(general_use) @map("wallet_tag")
+  isActive      Boolean     @default(true) @map("is_active")
+  
+  // Bridge API Integration
+  bridgeWalletId String     @unique @map("bridge_wallet_id") // Bridge API wallet ID
+  chain         WalletChain
+  address       String
+  bridgeTags    String[]    @default([]) @map("bridge_tags") // Tags from Bridge API
+  
+  // Bridge Protocol Timestamps
+  bridgeCreatedAt DateTime? @map("bridge_created_at")
+  bridgeUpdatedAt DateTime? @map("bridge_updated_at")
+  
+  // Relations
+  profile       Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  
+  @@index([profileId])
+  @@index([bridgeWalletId])
+  @@index([address])
+  @@map("wallets")
 }
 
