@@ -445,6 +445,108 @@ const SAMPLE_USERS = [
   },
 ];
 
+// Función para crear eventos basados en el flujo del usuario
+async function createUserEvents(
+  profile: any,
+  kycProfile: any,
+  kycStatus: string
+) {
+  const events = [];
+
+  // Use profile creation as base time and add realistic intervals
+  const baseTime = new Date(profile.createdAt).getTime();
+
+  // 1. Always create USER_SIGNED_UP event (right at profile creation)
+  events.push({
+    profileId: profile.id,
+    type: "USER_SIGNED_UP",
+    module: "AUTH",
+    description: "Usuario registrado en la plataforma",
+    createdAt: new Date(baseTime), // Profile creation time
+  });
+
+  // 2. If KYC profile exists, user submitted KYC
+  if (kycProfile) {
+    events.push({
+      profileId: profile.id,
+      type: "USER_SUBMITTED_KYC",
+      module: "KYC",
+      description: "Usuario envió información para verificación KYC",
+      createdAt: new Date(baseTime + 120000), // 2 minutes after signup
+    });
+
+    // 3. Add status-specific events with proper chronological timing
+    const kycSubmissionTime = baseTime + 120000; // 2 minutes after signup
+
+    if (kycStatus === "under_review") {
+      events.push({
+        profileId: profile.id,
+        type: "USER_KYC_UNDER_VERIFICATION",
+        module: "KYC",
+        description: "KYC del usuario en proceso de verificación",
+        createdAt: new Date(kycSubmissionTime + 60000), // 1 minute after KYC submission
+      });
+    } else if (kycStatus === "active") {
+      events.push({
+        profileId: profile.id,
+        type: "USER_KYC_UNDER_VERIFICATION",
+        module: "KYC",
+        description: "KYC del usuario en proceso de verificación",
+        createdAt: new Date(kycSubmissionTime + 60000), // 1 minute after KYC submission
+      });
+      events.push({
+        profileId: profile.id,
+        type: "USER_KYC_APPROVED",
+        module: "KYC",
+        description: "KYC del usuario aprobado exitosamente",
+        createdAt: new Date(kycSubmissionTime + 360000), // 6 minutes after KYC submission (5 min verification)
+      });
+    } else if (kycStatus === "rejected") {
+      events.push({
+        profileId: profile.id,
+        type: "USER_KYC_UNDER_VERIFICATION",
+        module: "KYC",
+        description: "KYC del usuario en proceso de verificación",
+        createdAt: new Date(kycSubmissionTime + 60000), // 1 minute after KYC submission
+      });
+      events.push({
+        profileId: profile.id,
+        type: "USER_KYC_REJECTED",
+        module: "KYC",
+        description: `KYC del usuario rechazado: ${kycProfile.kycRejectionReason || "Documentos no válidos"}`,
+        createdAt: new Date(kycSubmissionTime + 300000), // 5 minutes after KYC submission
+      });
+    } else if (kycStatus === "incomplete") {
+      events.push({
+        profileId: profile.id,
+        type: "USER_KYC_UNDER_VERIFICATION",
+        module: "KYC",
+        description: "KYC del usuario en proceso de verificación",
+        createdAt: new Date(kycSubmissionTime + 60000), // 1 minute after KYC submission
+      });
+    } else if (kycStatus === "awaiting_questionnaire") {
+      events.push({
+        profileId: profile.id,
+        type: "USER_KYC_UNDER_VERIFICATION",
+        module: "KYC",
+        description:
+          "KYC del usuario en proceso de verificación - esperando cuestionario",
+        createdAt: new Date(kycSubmissionTime + 60000), // 1 minute after KYC submission
+      });
+    }
+  }
+
+  // Create all events
+  for (const eventData of events) {
+    await (prisma as any).event.create({
+      data: eventData,
+    });
+  }
+
+  console.log(`✅ ${events.length} eventos creados para ${profile.firstName}`);
+  return events;
+}
+
 // Función principal para crear usuario de prueba
 async function createTestUser(userData: any) {
   try {
@@ -634,6 +736,13 @@ async function createTestUser(userData: any) {
       console.log(`✅ Razón de rechazo creada desde Bridge API`);
     }
 
+    // 10. Crear eventos del flujo del usuario
+    const events = await createUserEvents(
+      profile,
+      kycProfile,
+      mappedData.kycStatus
+    );
+
     console.log(
       `🎉 Datos completos: ${userData.firstName} ${userData.lastName} ${bridgeResponse ? "(con Bridge API)" : "(solo local)"}`
     );
@@ -641,7 +750,7 @@ async function createTestUser(userData: any) {
       `📊 Datos mapeados desde Bridge API: ${Object.keys(mappedData).length} campos`
     );
 
-    return { profile, kycProfile, bridgeResponse, mappedData };
+    return { profile, kycProfile, bridgeResponse, mappedData, events };
   } catch (error: any) {
     console.error(`❌ Error creando usuario ${userData.email}:`, error.message);
     return null;
@@ -676,6 +785,7 @@ async function main() {
     let realImagesUploaded = 0;
     let validUrlsGenerated = 0;
     let debugInfoSaved = 0;
+    let totalEvents = 0;
 
     for (const userData of SAMPLE_USERS) {
       const result = await createTestUser(userData);
@@ -689,6 +799,9 @@ async function main() {
         if (supabaseAdmin) {
           realImagesUploaded++;
         }
+        if (result.events) {
+          totalEvents += result.events.length;
+        }
       }
 
       // Pausa entre creaciones
@@ -697,6 +810,7 @@ async function main() {
 
     console.log(`\n✨ Seeder CORREGIDO completado!`);
     console.log(`📊 Perfiles de prueba creados: ${createdCount}`);
+    console.log(`🎯 Eventos de flujo creados: ${totalEvents}`);
     console.log(
       `🔗 Llamadas exitosas a Bridge API: ${bridgeApiCalls}/${createdCount}`
     );
@@ -720,6 +834,9 @@ async function main() {
     console.log(`   ✅ Razones de rechazo desde Bridge API`);
     console.log(`   🐛 Debug info completo guardado en bridgeRawResponse`);
     console.log(`   ✅ Endorsements con requirements detallados`);
+    console.log(
+      `   🎯 Eventos de flujo del usuario (sign up → KYC → approval/rejection)`
+    );
 
     console.log(
       `\n🎯 Ahora puedes acceder al dashboard KYC como super admin para revisar estos perfiles con datos reales.`

@@ -351,6 +351,100 @@ function mapBridgeResponseToKYC(bridgeResponse: any, userData: any) {
   };
 }
 
+// Función para crear eventos basados en el flujo del usuario y escenario
+async function createUserEvents(profile: any, kycProfile: any, kycStatus: string, scenario: string) {
+  const events = [];
+  
+  // 1. Always create USER_SIGNED_UP event
+  events.push({
+    profileId: profile.id,
+    type: "USER_SIGNED_UP",
+    module: "AUTH",
+    description: "Usuario registrado en la plataforma",
+    createdAt: new Date(profile.createdAt.getTime() + 1000), // 1 second after profile creation
+  });
+
+  // 2. If KYC profile exists, user submitted KYC
+  if (kycProfile) {
+    events.push({
+      profileId: profile.id,
+      type: "USER_SUBMITTED_KYC", 
+      module: "KYC",
+      description: "Usuario envió información para verificación KYC",
+      createdAt: new Date(kycProfile.createdAt.getTime() + 1000), // 1 second after KYC profile creation
+    });
+
+    // 3. Add status-specific events based on scenario
+    switch (kycStatus) {
+      case "under_review":
+        events.push({
+          profileId: profile.id,
+          type: "USER_KYC_UNDER_VERIFICATION",
+          module: "KYC",
+          description: "KYC del usuario en proceso de verificación",
+          createdAt: new Date(kycProfile.kycSubmittedAt.getTime() + 60000), // 1 minute after submission
+        });
+        break;
+
+      case "active":
+        events.push({
+          profileId: profile.id,
+          type: "USER_KYC_UNDER_VERIFICATION",
+          module: "KYC",
+          description: "KYC del usuario en proceso de verificación",
+          createdAt: new Date(kycProfile.kycSubmittedAt.getTime() + 60000), // 1 minute after submission
+        });
+        events.push({
+          profileId: profile.id,
+          type: "USER_KYC_APPROVED",
+          module: "KYC",
+          description: "KYC del usuario aprobado exitosamente",
+          createdAt: kycProfile.kycApprovedAt || new Date(kycProfile.kycSubmittedAt.getTime() + 300000), // 5 minutes after submission
+        });
+        break;
+
+      case "rejected":
+        events.push({
+          profileId: profile.id,
+          type: "USER_KYC_UNDER_VERIFICATION",
+          module: "KYC",
+          description: "KYC del usuario en proceso de verificación",
+          createdAt: new Date(kycProfile.kycSubmittedAt.getTime() + 60000), // 1 minute after submission
+        });
+        events.push({
+          profileId: profile.id,
+          type: "USER_KYC_REJECTED",
+          module: "KYC",
+          description: `KYC del usuario rechazado (${scenario}): ${kycProfile.kycRejectionReason || "Documentos no válidos"}`,
+          createdAt: kycProfile.kycRejectedAt || new Date(kycProfile.kycSubmittedAt.getTime() + 300000), // 5 minutes after submission
+        });
+        break;
+
+      case "awaiting_questionnaire":
+      case "incomplete":
+      case "paused":
+        events.push({
+          profileId: profile.id,
+          type: "USER_KYC_UNDER_VERIFICATION",
+          module: "KYC",
+          description: `KYC del usuario en proceso de verificación (${scenario})`,
+          createdAt: new Date(kycProfile.kycSubmittedAt.getTime() + 60000), // 1 minute after submission
+        });
+        break;
+    }
+  }
+
+  // Create all events
+  for (const eventData of events) {
+    await (prisma as any).event.create({
+      data: eventData,
+    });
+  }
+
+  console.log(`✅ ${events.length} eventos creados para ${profile.firstName} (${scenario})`);
+  return events;
+}
+
 // Generar timestamp para emails únicos
 const timestamp = Date.now().toString().slice(-6);
 
@@ -707,11 +801,14 @@ async function createTestUser(userData: any) {
       );
     }
 
+    // 10. Crear eventos del flujo del usuario
+    const events = await createUserEvents(profile, kycProfile, mappedData.kycStatus, userData.scenario);
+
     console.log(
       `🎉 ${userData.scenario}: ${userData.firstName} ${userData.lastName} creado exitosamente`
     );
 
-    return { profile, kycProfile, bridgeResponse, mappedData };
+    return { profile, kycProfile, bridgeResponse, mappedData, events };
   } catch (error: any) {
     console.error(`❌ Error creando usuario ${userData.email}:`, error.message);
     return null;
@@ -726,6 +823,7 @@ async function main() {
 
   try {
     let createdCount = 0;
+    let totalEvents = 0;
     const scenarioStats: Record<string, number> = {};
 
     for (const userData of REJECTION_SCENARIOS) {
@@ -734,6 +832,9 @@ async function main() {
         createdCount++;
         scenarioStats[userData.scenario] =
           (scenarioStats[userData.scenario] || 0) + 1;
+        if (result.events) {
+          totalEvents += result.events.length;
+        }
       }
 
       // Pausa entre creaciones
@@ -742,6 +843,7 @@ async function main() {
 
     console.log(`\n✨ Seeder de ESCENARIOS DE RECHAZO completado!`);
     console.log(`📊 Total de perfiles creados: ${createdCount}`);
+    console.log(`🎯 Total de eventos creados: ${totalEvents}`);
     console.log(`\n📈 Estadísticas por escenario:`);
 
     Object.entries(scenarioStats).forEach(([scenario, count]) => {
@@ -765,6 +867,9 @@ async function main() {
     );
     console.log(
       `📄 Todas las imágenes se almacenan como rutas relativas compatibles con el frontend.`
+    );
+    console.log(
+      `🎯 Eventos de flujo del usuario registrados para tracking completo.`
     );
   } catch (error: any) {
     console.error("❌ Error general en el seeder:", error.message);

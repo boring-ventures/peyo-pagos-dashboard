@@ -143,11 +143,25 @@ enum EndorsementStatus {
   revoked
 }
 
+enum EventType {
+  USER_SIGNED_UP
+  USER_SUBMITTED_KYC
+  USER_KYC_UNDER_VERIFICATION
+  USER_KYC_APPROVED
+  USER_KYC_REJECTED
+}
+
+enum EventModule {
+  AUTH
+  KYC
+  PROFILE
+}
+
 model Profile {
   id            String               @id @default(cuid())
   userId        String               @unique
   createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
+updatedAt     DateTime             @updatedAt
 
   // Basic Information (for all users)
   email         String?              @unique // From Supabase auth
@@ -157,9 +171,11 @@ model Profile {
   // User Management
   status        UserStatus           @default(active)
   role          UserRole             @default(USER)
+  userTag       String?              @map("user_tag") @unique
   
   // Relations
   kycProfile    KYCProfile?          // Only for USER role - Bridge Protocol integration
+  events        Event[]              // Track user events
   
   @@index([userId])
   @@index([status])
@@ -218,6 +234,7 @@ model KYCProfile {
   hasAcceptedTermsOfService Boolean? @default(false) @map("has_accepted_terms_of_service")
   
   // Bridge Protocol Debug Data
+  bridgeRawRequest Json?            @map("bridge_raw_request") // Full Bridge Protocol API request for debugging
   bridgeRawResponse Json?            @map("bridge_raw_response") // Full Bridge Protocol API response for debugging
   
   // Relations
@@ -336,5 +353,31 @@ model Endorsement {
   @@index([kycProfileId])
   @@index([name])
   @@map("endorsements")
+}
+
+model Event {
+  id            String      @id @default(cuid())
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  // Event Information
+  type          EventType
+  module        EventModule
+  description   String?     // Optional description for additional context
+  
+  // User Reference
+  profileId     String      @map("profile_id")
+  
+  // Metadata
+  metadata      Json?       // Flexible field for additional event data
+  
+  // Relations
+  profile       Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  
+  @@index([profileId])
+  @@index([type])
+  @@index([module])
+  @@index([createdAt])
+  @@map("events")
 }
 

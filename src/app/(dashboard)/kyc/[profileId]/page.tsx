@@ -31,8 +31,18 @@ import {
   Mail,
   RefreshCw,
   Hash,
+  Activity,
+  UserPlus,
+  Send,
+  Eye,
+  CheckCheck,
+  X,
 } from "lucide-react";
-import type { ProfileWithKYC, KYCProfileWithRelations } from "@/types/kyc";
+import type {
+  ProfileWithKYC,
+  KYCProfileWithRelations,
+  Event,
+} from "@/types/kyc";
 
 interface EndorsementRequirements {
   complete?: string[];
@@ -46,6 +56,8 @@ import {
   USER_STATUS_LABELS,
   ENDORSEMENT_TYPE_LABELS,
   ENDORSEMENT_STATUS_LABELS,
+  EVENT_TYPE_LABELS,
+  EVENT_MODULE_LABELS,
 } from "@/types/kyc";
 
 export default function KYCProfileDetailsPage() {
@@ -57,8 +69,10 @@ export default function KYCProfileDetailsPage() {
   const [kycDetails, setKycDetails] = useState<KYCProfileWithRelations | null>(
     null
   );
+  const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [loadingEvents, setLoadingEvents] = useState(false);
 
   const fetchProfileDetails = useCallback(async () => {
     try {
@@ -93,6 +107,36 @@ export default function KYCProfileDetailsPage() {
     }
   }, [profileId, router]);
 
+  const fetchEvents = useCallback(async () => {
+    try {
+      setLoadingEvents(true);
+      const response = await fetch(`/api/kyc/${profileId}/events`);
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch events");
+      }
+
+      const data = await response.json();
+      setEvents(data.events || []);
+    } catch (error) {
+      console.error("Error fetching events:", error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los eventos",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingEvents(false);
+    }
+  }, [profileId]);
+
+  useEffect(() => {
+    if (profileId) {
+      fetchProfileDetails();
+      fetchEvents();
+    }
+  }, [profileId, fetchProfileDetails, fetchEvents]);
+
   const handleRefreshFromBridge = async () => {
     if (!profile?.kycProfile?.bridgeCustomerId) {
       toast({
@@ -123,8 +167,9 @@ export default function KYCProfileDetailsPage() {
         description: `${data.message}. ${data.updatedFields} campos actualizados.`,
       });
 
-      // Refresh the profile details after successful update
+      // Refresh the profile details and events after successful update
       await fetchProfileDetails();
+      await fetchEvents();
     } catch (error) {
       const errorMessage =
         error instanceof Error
@@ -144,8 +189,9 @@ export default function KYCProfileDetailsPage() {
   useEffect(() => {
     if (profileId) {
       fetchProfileDetails();
+      fetchEvents();
     }
-  }, [profileId, fetchProfileDetails]);
+  }, [profileId, fetchProfileDetails, fetchEvents]);
 
   const getUserInitials = () => {
     if (!profile) return "U";
@@ -223,6 +269,40 @@ export default function KYCProfileDetailsPage() {
         return <Clock className="w-4 h-4 text-yellow-600" />;
       default:
         return <AlertCircle className="w-4 h-4 text-gray-600" />;
+    }
+  };
+
+  const getEventIcon = (eventType: Event["type"]) => {
+    switch (eventType) {
+      case "USER_SIGNED_UP":
+        return <UserPlus className="w-4 h-4 text-blue-600" />;
+      case "USER_SUBMITTED_KYC":
+        return <Send className="w-4 h-4 text-purple-600" />;
+      case "USER_KYC_UNDER_VERIFICATION":
+        return <Eye className="w-4 h-4 text-yellow-600" />;
+      case "USER_KYC_APPROVED":
+        return <CheckCheck className="w-4 h-4 text-green-600" />;
+      case "USER_KYC_REJECTED":
+        return <X className="w-4 h-4 text-red-600" />;
+      default:
+        return <Activity className="w-4 h-4 text-gray-600" />;
+    }
+  };
+
+  const getEventColor = (eventType: Event["type"]) => {
+    switch (eventType) {
+      case "USER_SIGNED_UP":
+        return "bg-blue-50 text-blue-700 border-blue-200";
+      case "USER_SUBMITTED_KYC":
+        return "bg-purple-50 text-purple-700 border-purple-200";
+      case "USER_KYC_UNDER_VERIFICATION":
+        return "bg-yellow-50 text-yellow-700 border-yellow-200";
+      case "USER_KYC_APPROVED":
+        return "bg-green-50 text-green-700 border-green-200";
+      case "USER_KYC_REJECTED":
+        return "bg-red-50 text-red-700 border-red-200";
+      default:
+        return "bg-gray-50 text-gray-700 border-gray-200";
     }
   };
 
@@ -347,7 +427,10 @@ export default function KYCProfileDetailsPage() {
               {kycDetails?.bridgeCustomerId && (
                 <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
                   <Hash className="h-3 w-3" />
-                  Bridge ID: <span className="font-mono">{kycDetails.bridgeCustomerId}</span>
+                  Bridge ID:{" "}
+                  <span className="font-mono">
+                    {kycDetails.bridgeCustomerId}
+                  </span>
                 </p>
               )}
               <div className="flex gap-2 mt-2">
@@ -386,12 +469,13 @@ export default function KYCProfileDetailsPage() {
         </Card>
       ) : (
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 p-1">
+          <TabsList className="grid w-full grid-cols-7 p-1">
             <TabsTrigger value="overview">Resumen</TabsTrigger>
             <TabsTrigger value="personal">Personal</TabsTrigger>
             <TabsTrigger value="documents">Documentos</TabsTrigger>
             <TabsTrigger value="verification">Verificación</TabsTrigger>
             <TabsTrigger value="endorsements">Endorsements</TabsTrigger>
+            <TabsTrigger value="events">Eventos</TabsTrigger>
             <TabsTrigger value="debug">Debug</TabsTrigger>
           </TabsList>
 
@@ -691,8 +775,10 @@ export default function KYCProfileDetailsPage() {
                               <ExpandableImage
                                 src={fullUrl}
                                 alt={doc.description || "Documento"}
-                                title={doc.description || `Documento ${index + 1}`}
-                                description={`Subido: ${formatDate(doc.createdAt)} • Tamaño: ${doc.fileSize ? Math.round(doc.fileSize / 1024) + ' KB' : 'N/A'}`}
+                                title={
+                                  doc.description || `Documento ${index + 1}`
+                                }
+                                description={`Subido: ${formatDate(doc.createdAt)} • Tamaño: ${doc.fileSize ? Math.round(doc.fileSize / 1024) + " KB" : "N/A"}`}
                                 width={400}
                                 height={256}
                                 className="max-w-md"
@@ -798,7 +884,7 @@ export default function KYCProfileDetailsPage() {
                                       src={frontUrl!}
                                       alt="Documento - Frente"
                                       title={`${info.type} - Frente`}
-                                      description={`País emisor: ${info.issuingCountry} • Número: ${info.number || 'No especificado'}`}
+                                      description={`País emisor: ${info.issuingCountry} • Número: ${info.number || "No especificado"}`}
                                       width={300}
                                       height={192}
                                       expandButtonPosition="center"
@@ -814,7 +900,7 @@ export default function KYCProfileDetailsPage() {
                                       src={backUrl!}
                                       alt="Documento - Reverso"
                                       title={`${info.type} - Reverso`}
-                                      description={`País emisor: ${info.issuingCountry} • Número: ${info.number || 'No especificado'}`}
+                                      description={`País emisor: ${info.issuingCountry} • Número: ${info.number || "No especificado"}`}
                                       width={300}
                                       height={192}
                                       expandButtonPosition="center"
@@ -1061,6 +1147,109 @@ export default function KYCProfileDetailsPage() {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+
+          {/* Events Tab */}
+          <TabsContent value="events">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5" />
+                  Historial de Eventos
+                </CardTitle>
+                <CardDescription>
+                  Cronología de eventos de autenticación y KYC para este usuario
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {loadingEvents ? (
+                  <div className="space-y-4">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="flex items-start gap-3 p-4 border rounded-lg"
+                      >
+                        <Skeleton className="h-8 w-8 rounded-full" />
+                        <div className="flex-1 space-y-2">
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-3 w-full" />
+                          <Skeleton className="h-3 w-24" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : events.length > 0 ? (
+                  <div className="space-y-4">
+                    {events
+                      .slice()
+                      .reverse()
+                      .map((event, index) => (
+                        <div
+                          key={event.id}
+                          className={`flex items-start gap-3 p-4 border rounded-lg transition-colors hover:bg-gray-50/50 ${index === events.length - 1 ? "ring-2 ring-primary/20 bg-primary/5" : ""}`}
+                        >
+                          <div
+                            className={`p-2 rounded-full ${getEventColor(event.type).split(" ").slice(0, 1).join(" ")}`}
+                          >
+                            {getEventIcon(event.type)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge
+                                variant="outline"
+                                className={getEventColor(event.type)}
+                              >
+                                {EVENT_TYPE_LABELS[event.type]}
+                              </Badge>
+                              <Badge variant="secondary" className="text-xs">
+                                {EVENT_MODULE_LABELS[event.module]}
+                              </Badge>
+                            </div>
+                            {event.description && (
+                              <p className="text-sm text-muted-foreground mb-2">
+                                {event.description}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <Calendar className="h-3 w-3" />
+                              {formatDate(event.createdAt)}
+                            </div>
+                            {event.metadata &&
+                              Object.keys(event.metadata).length > 0 && (
+                                <details className="mt-2">
+                                  <summary className="text-xs cursor-pointer text-muted-foreground hover:text-foreground">
+                                    Ver detalles adicionales
+                                  </summary>
+                                  <pre className="mt-2 p-2 bg-gray-100 rounded text-xs overflow-auto">
+                                    {JSON.stringify(event.metadata, null, 2)}
+                                  </pre>
+                                </details>
+                              )}
+                          </div>
+                          {index === events.length - 1 && (
+                            <Badge
+                              variant="outline"
+                              className="bg-blue-50 text-blue-700 border-blue-200"
+                            >
+                              Más reciente
+                            </Badge>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <Card>
+                    <CardContent className="text-center py-12">
+                      <Activity className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-xl font-medium mb-2">Sin eventos</h3>
+                      <p className="text-muted-foreground">
+                        No hay eventos registrados para este usuario
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Debug Tab */}

@@ -108,7 +108,35 @@ export interface KYCStatusUpdate {
   rejectionReason?: string;
 }
 
+export interface Event {
+  id: string;
+  type:
+    | "USER_SIGNED_UP"
+    | "USER_SUBMITTED_KYC"
+    | "USER_KYC_UNDER_VERIFICATION"
+    | "USER_KYC_APPROVED"
+    | "USER_KYC_REJECTED";
+  module: "AUTH" | "KYC" | "PROFILE";
+  description: string | null;
+  profileId: string;
+  metadata: Record<string, any> | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
 
+export const EVENT_TYPE_LABELS: Record<Event["type"], string> = {
+  USER_SIGNED_UP: "Usuario Registrado",
+  USER_SUBMITTED_KYC: "KYC Enviado",
+  USER_KYC_UNDER_VERIFICATION: "KYC en Verificación",
+  USER_KYC_APPROVED: "KYC Aprobado",
+  USER_KYC_REJECTED: "KYC Rechazado",
+};
+
+export const EVENT_MODULE_LABELS: Record<Event["module"], string> = {
+  AUTH: "Autenticación",
+  KYC: "Verificación KYC",
+  PROFILE: "Perfil",
+};
 
 // KYC Status labels
 export const KYC_STATUS_LABELS: Record<KYCStatus, string> = {
@@ -122,8 +150,6 @@ export const KYC_STATUS_LABELS: Record<KYCStatus, string> = {
   paused: "Pausado",
   offboarded: "Desvinculado",
 };
-
-
 
 // User Role labels
 export const USER_ROLE_LABELS: Record<UserRole, string> = {

@@ -96,7 +96,33 @@ npx tsx scripts/seed-kyc-data.ts
 - 📝 Mapeo completo de capabilities, timestamps y estados desde Bridge
 - ⚡ Dashboard KYC funcional con visualización de imágenes
 
-### 3. Limpiar Datos de Prueba
+### 3. Crear Usuario Existente Verificado
+
+```bash
+npx tsx scripts/seed-existing-bridge-user.ts
+```
+
+**Qué hace:**
+
+- 🔗 Crea un perfil usando un **Bridge Customer ID existente**
+- ✅ Obtiene datos reales del customer desde Bridge API
+- 🎯 Perfil **verificado y activo** por defecto
+- 📊 Mapea capabilities, endorsements y requirements desde Bridge
+- 🖼️ Sube imágenes reales a Supabase Storage
+- 🛡️ Detecta si el usuario ya existe en la base de datos
+
+**Bridge Customer ID configurado:**
+- `1e97f499-92c3-4cec-a9bb-b0e427a2619f`
+
+**Funcionalidades principales:**
+
+- 🔍 **GET request** a Bridge API para obtener customer existente
+- 📈 Estado `active` con capabilities funcionales
+- ✅ Endorsements aprobados automáticamente
+- 📝 Sin requirements pendientes
+- 🎯 Datos perfectos para pruebas de integración
+
+### 4. Limpiar Datos de Prueba
 
 ```bash
 npm run clean:kyc
@@ -117,15 +143,14 @@ npx tsx scripts/clean-kyc-data.ts
 
 ### Perfiles de Prueba
 
-| Email                             | Nombre           | Estado KYC             | Ocupación               | Bridge API |
-| --------------------------------- | ---------------- | ---------------------- | ----------------------- | ---------- |
-| maria.gonzalez.test@example.com   | María González   | under_review           | Ingeniera de Software   | ✅         |
-| carlos.rodriguez.test@example.com | Carlos Rodríguez | awaiting_questionnaire | Consultor Independiente | ✅         |
-| ana.martinez.test@example.com     | Ana Martínez     | rejected               | Gerente de Marketing    | ✅         |
-| luis.fernandez.test@example.com   | Luis Fernández   | incomplete             | Estudiante de Posgrado  | ✅         |
-| sofia.lopez.test@example.com      | Sofía López      | active                 | Directora de Ventas     | ✅         |
-| diego.morales.test@example.com    | Diego Morales    | awaiting_ubo           | Desarrollador Freelance | ✅         |
-| patricia.herrera.test@example.com | Patricia Herrera | paused                 | Diseñadora Gráfica      | ✅         |
+| Email                             | Nombre           | Estado KYC             | Ocupación               | Bridge API | Tipo |
+| --------------------------------- | ---------------- | ---------------------- | ----------------------- | ---------- | ---- |
+| maria.gonzalez.test@example.com   | María González   | under_review           | Ingeniera de Software   | ✅         | Creado |
+| carlos.rodriguez.test@example.com | Carlos Rodríguez | awaiting_questionnaire | Consultor Independiente | ✅         | Creado |
+| ana.martinez.test@example.com     | Ana Martínez     | rejected               | Gerente de Marketing    | ✅         | Creado |
+| luis.fernandez.test@example.com   | Luis Fernández   | incomplete             | Estudiante de Posgrado  | ✅         | Creado |
+| sofia.lopez.test@example.com      | Sofía López      | active                 | Directora de Ventas     | ✅         | Creado |
+| juan.vega.verified@example.com    | Juan Carlos Vega | active                 | Director de Tecnología  | ✅         | **Existente** |
 
 ### Estructura de Datos
 
@@ -278,6 +303,18 @@ BRIDGE_API_URL=https://api.sandbox.bridge.xyz/v0
 
 # Ejecutar con integración real
 npm run seed:kyc
+```
+
+### Usuario Existente Verificado
+
+```bash
+# Crear perfil con Bridge Customer ID existente
+npx tsx scripts/seed-existing-bridge-user.ts
+
+# Perfecto para:
+# - Pruebas de integración con usuario verificado
+# - Testing de funcionalidades que requieren KYC activo
+# - Validación de endpoints que necesitan capabilities activas
 ```
 
 ### Solo Datos Locales

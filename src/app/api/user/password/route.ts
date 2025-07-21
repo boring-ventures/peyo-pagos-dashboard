@@ -5,7 +5,8 @@ import { cookies } from "next/headers";
 // PUT: Update user password
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     // Get the current user's session
     const {
@@ -17,9 +18,18 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const { newPassword } = await request.json();
+    const { currentPassword, newPassword } = await request.json();
+
+    if (!newPassword) {
+      return NextResponse.json(
+        { error: "New password is required" },
+        { status: 400 }
+      );
+    }
 
     // Update the password using Supabase Auth API
+    // Note: Supabase Auth updateUser doesn't require current password verification
+    // as it relies on the authenticated session for security
     const { error } = await supabase.auth.updateUser({
       password: newPassword,
     });

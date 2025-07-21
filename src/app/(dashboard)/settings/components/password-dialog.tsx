@@ -79,19 +79,16 @@ export function PasswordDialog({ open, onOpenChange }: PasswordDialogProps) {
     try {
       setIsSubmitting(true);
 
-      // Get current user's password hash to send to API
-      const hashedCurrentPassword = await hashPassword(data.currentPassword);
-      const hashedNewPassword = await hashPassword(data.newPassword);
-
-      // Call API to update password
+      // Call API to update password with plain text passwords
+      // Supabase Auth handles the hashing internally
       const response = await fetch("/api/user/password", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          currentPassword: hashedCurrentPassword,
-          newPassword: hashedNewPassword,
+          currentPassword: data.currentPassword,
+          newPassword: data.newPassword,
         }),
       });
 

@@ -1,4 +1,4 @@
-import { LayoutDashboard, FileText, Users } from "lucide-react";
+import { LayoutDashboard, FileText, Users, Wallet } from "lucide-react";
 import type { SidebarData } from "../types";
 
 export const sidebarData: SidebarData = {
@@ -37,6 +37,11 @@ export const sidebarData: SidebarData = {
           title: "Gestión KYC",
           url: "/kyc",
           icon: FileText,
+        },
+        {
+          title: "Gestión de Wallets",
+          url: "/wallets",
+          icon: Wallet,
         },
       ],
     },
