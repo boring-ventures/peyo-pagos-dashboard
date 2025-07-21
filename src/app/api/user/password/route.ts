@@ -5,8 +5,7 @@ import { cookies } from "next/headers";
 // PUT: Update user password
 export async function PUT(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    const supabase = createRouteHandlerClient({ cookies });
 
     // Get the current user's session
     const {
@@ -18,7 +17,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const { currentPassword, newPassword } = await request.json();
+    const { newPassword } = await request.json();
 
     if (!newPassword) {
       return NextResponse.json(

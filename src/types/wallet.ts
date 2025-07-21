@@ -90,7 +90,7 @@ export interface WalletApiResponse {
   pagination: PaginationMeta;
 }
 
-export interface WalletStatsApiResponse extends WalletStats {}
+export type WalletStatsApiResponse = WalletStats;
 
 export interface UserWalletApiResponse {
   user: UserWithWallets;

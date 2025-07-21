@@ -119,7 +119,7 @@ export interface Event {
   module: "AUTH" | "KYC" | "PROFILE";
   description: string | null;
   profileId: string;
-  metadata: Record<string, any> | null;
+  metadata: Record<string, unknown> | null;
   createdAt: Date | string;
   updatedAt: Date | string;
 }

@@ -26,7 +26,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { PasswordInput } from "@/components/utils/password-input";
 import { PasswordStrengthIndicator } from "@/components/utils/password-strength-indicator";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
-import { hashPassword } from "@/lib/auth/password-crypto";
 
 // Password validation schema
 const passwordFormSchema = z

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
 import { Button } from "@/components/ui/button";
@@ -9,13 +9,11 @@ import {
   RefreshCw,
   Wallet,
   Copy,
-  ExternalLink,
   Shield,
   User,
   Calendar,
   Activity,
   Tag,
-  Link as LinkIcon,
 } from "lucide-react";
 import {
   Card,
@@ -47,13 +45,7 @@ export default function UserWalletsPage() {
 
   const userId = params.userId as string;
 
-  useEffect(() => {
-    if (profile && userId) {
-      fetchUserWallets();
-    }
-  }, [profile, userId, refreshKey]);
-
-  const fetchUserWallets = async () => {
+  const fetchUserWallets = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/wallets/${userId}`);
@@ -78,7 +70,13 @@ export default function UserWalletsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
+
+  useEffect(() => {
+    if (profile && userId) {
+      fetchUserWallets();
+    }
+  }, [profile, userId, refreshKey, fetchUserWallets]);
 
   const handleRefresh = () => {
     setRefreshKey((prev) => prev + 1);

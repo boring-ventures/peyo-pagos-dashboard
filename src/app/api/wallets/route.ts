@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import prisma from "@/lib/prisma";
-import type { UserRole, UserStatus, Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import type {
   WalletApiResponse,
-  WalletFilters,
   UserWithWallets,
   BridgeWalletResponse,
 } from "@/types/wallet";

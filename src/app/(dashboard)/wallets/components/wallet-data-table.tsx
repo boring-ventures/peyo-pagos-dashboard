@@ -11,12 +11,9 @@ import {
   ArrowDown,
   Eye,
   Wallet,
-  User,
   Calendar,
   MoreHorizontal,
-  ExternalLink,
   Copy,
-  Coins,
 } from "lucide-react";
 import {
   Table,
@@ -48,12 +45,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
 import { useRouter } from "next/navigation";
 import type {
-  WalletFilters,
   UserWithWallets,
   PaginationMeta,
   WalletApiResponse,
+  WalletFilters,
 } from "@/types/wallet";
-import { SUPPORTED_CHAINS } from "@/types/wallet";
 
 type SortConfig = {
   field: string;

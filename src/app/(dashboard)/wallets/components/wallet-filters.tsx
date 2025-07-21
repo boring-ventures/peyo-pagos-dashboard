@@ -154,7 +154,7 @@ export function WalletFilters({
         <div className="flex flex-wrap gap-2">
           {filters.search && (
             <Badge variant="outline" className="flex items-center gap-1">
-              Búsqueda: "{filters.search}"
+              Búsqueda: &quot;{filters.search}&quot;
               <button
                 onClick={() => {
                   setSearchInput("");
