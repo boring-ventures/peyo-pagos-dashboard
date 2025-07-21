@@ -50,18 +50,6 @@ export function AnalyticsStats({ analytics, isLoading }: AnalyticsStatsProps) {
       minimumFractionDigits: 2,
     }).format(amount);
 
-  const kycStatusColors = {
-    active: "bg-green-500",
-    under_review: "bg-yellow-500",
-    rejected: "bg-red-500",
-    incomplete: "bg-orange-500",
-    awaiting_questionnaire: "bg-blue-500",
-    awaiting_ubo: "bg-purple-500",
-    not_started: "bg-gray-500",
-    offboarded: "bg-gray-400",
-    paused: "bg-gray-600",
-  };
-
   return (
     <div className="space-y-6">
       {/* Main Cost Overview */}
@@ -115,7 +103,9 @@ export function AnalyticsStats({ analytics, isLoading }: AnalyticsStatsProps) {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today's Costs</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Today&apos;s Costs
+            </CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>

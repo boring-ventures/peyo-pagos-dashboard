@@ -64,7 +64,14 @@ async function getWalletCounts(customerIds: string[]): Promise<number> {
 
 // Helper function to get monthly breakdown
 function getMonthlyBreakdown(
-  kycProfiles: any[]
+  kycProfiles: {
+    id: string;
+    bridgeCustomerId: string | null;
+    kycStatus: string;
+    kycSubmittedAt: Date | null;
+    kycApprovedAt: Date | null;
+    createdAt: Date;
+  }[]
 ): PlatformAnalytics["monthlyBreakdown"] {
   const monthlyData: { [key: string]: { kycs: number; wallets: number } } = {};
 

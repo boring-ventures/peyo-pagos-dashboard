@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+
 import { useAuth } from "@/providers/auth-provider";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { AnalyticsStats } from "./components/analytics-stats";
@@ -19,10 +19,8 @@ import { RefreshCw, BarChart3, Shield, AlertTriangle } from "lucide-react";
 export default function AnalyticsPage() {
   const { profile } = useAuth();
   const { data, isLoading, error, refetch, isFetching } = useAnalytics();
-  const [refreshKey, setRefreshKey] = useState(0);
 
   const handleRefresh = async () => {
-    setRefreshKey((prev) => prev + 1);
     await refetch();
   };
 
@@ -35,7 +33,7 @@ export default function AnalyticsPage() {
             <Shield className="mx-auto h-12 w-12 text-red-500 mb-4" />
             <CardTitle className="text-xl">Access Denied</CardTitle>
             <CardDescription>
-              You don't have permission to access this module. Only
+              You don&apos;t have permission to access this module. Only
               administrators can view platform analytics.
             </CardDescription>
           </CardHeader>
@@ -184,7 +182,7 @@ export default function AnalyticsPage() {
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm">Today's total costs</span>
+                <span className="text-sm">Today&apos;s total costs</span>
                 <span className="font-medium text-green-600">
                   ${analytics.recentActivity.totalCostsToday.toFixed(2)}
                 </span>
