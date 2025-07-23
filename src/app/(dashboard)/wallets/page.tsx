@@ -12,7 +12,6 @@ import {
   Wallet,
   Users,
   Shield,
-  Network,
   RotateCw,
   Database,
 } from "lucide-react";
@@ -161,7 +160,7 @@ export default function WalletsPage() {
 
       {/* Main Content */}
       <Tabs defaultValue="all" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="all" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Todos los Usuarios
@@ -169,13 +168,6 @@ export default function WalletsPage() {
           <TabsTrigger value="with-wallets" className="flex items-center gap-2">
             <Wallet className="h-4 w-4" />
             Con Wallets
-          </TabsTrigger>
-          <TabsTrigger
-            value="without-wallets"
-            className="flex items-center gap-2"
-          >
-            <Network className="h-4 w-4" />
-            Sin Wallets
           </TabsTrigger>
         </TabsList>
 
@@ -231,25 +223,7 @@ export default function WalletsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="without-wallets" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Usuarios sin Wallets</CardTitle>
-              <CardDescription>
-                Usuarios que aún no tienen wallets configuradas en el sistema
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <WalletDataTable
-                filters={{
-                  ...filters,
-                  hasWallets: "false",
-                }}
-                refreshKey={refreshKey}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
+
       </Tabs>
     </div>
   );

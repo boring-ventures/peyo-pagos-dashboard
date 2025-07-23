@@ -48,7 +48,7 @@ interface EndorsementRequirements {
   complete?: string[];
   pending?: string[];
   issues?: string[];
-  missing?: string | null;
+  missing?: string | string[] | object | null;
 }
 import {
   KYC_STATUS_LABELS,
@@ -1118,16 +1118,38 @@ export default function KYCProfileDetailsPage() {
                                   <h3 className="text-lg font-semibold text-gray-600 mb-3">
                                     🔍 Información Faltante
                                   </h3>
-                                  <Badge
-                                    variant="outline"
-                                    className="p-3 bg-gray-50 text-gray-700 border-gray-200"
-                                  >
-                                    {(
-                                      endorsement.requirements.missing as string
-                                    )
-                                      .replace(/_/g, " ")
-                                      .replace(/\b\w/g, (l) => l.toUpperCase())}
-                                  </Badge>
+                                  {Array.isArray(endorsement.requirements.missing) ? (
+                                    <div className="space-y-2">
+                                      {endorsement.requirements.missing.map((item, index) => (
+                                        <Badge
+                                          key={index}
+                                          variant="outline"
+                                          className="p-3 bg-gray-50 text-gray-700 border-gray-200"
+                                        >
+                                          {typeof item === 'string' 
+                                            ? item.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())
+                                            : JSON.stringify(item)
+                                          }
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  ) : typeof endorsement.requirements.missing === 'string' ? (
+                                    <Badge
+                                      variant="outline"
+                                      className="p-3 bg-gray-50 text-gray-700 border-gray-200"
+                                    >
+                                      {endorsement.requirements.missing
+                                        .replace(/_/g, " ")
+                                        .replace(/\b\w/g, (l) => l.toUpperCase())}
+                                    </Badge>
+                                  ) : (
+                                    <Badge
+                                      variant="outline"
+                                      className="p-3 bg-gray-50 text-gray-700 border-gray-200"
+                                    >
+                                      {JSON.stringify(endorsement.requirements.missing)}
+                                    </Badge>
+                                  )}
                                 </div>
                               )}
                           </div>
