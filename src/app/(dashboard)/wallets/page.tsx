@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { WalletDataTable } from "./components/wallet-data-table";
 import { WalletFilters } from "./components/wallet-filters";
 import { WalletStats } from "./components/wallet-stats";
@@ -31,12 +31,19 @@ export default function WalletsPage() {
   const { profile } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [filters, setFilters] = useState<WalletFiltersType>({
-    chain: "all",
-    hasWallets: "all",
-    walletTag: "all",
-    search: "",
-  });
+
+  // Memoize the initial filters to prevent object reference changes
+  const initialFilters = useMemo<WalletFiltersType>(
+    () => ({
+      chain: "all",
+      hasWallets: "all",
+      walletTag: "all",
+      search: "",
+    }),
+    []
+  );
+
+  const [filters, setFilters] = useState<WalletFiltersType>(initialFilters);
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Check if user is admin
@@ -50,9 +57,9 @@ export default function WalletsPage() {
     setRefreshKey((prev) => prev + 1);
   };
 
-  const handleFiltersChange = (newFilters: WalletFiltersType) => {
+  const handleFiltersChange = useCallback((newFilters: WalletFiltersType) => {
     setFilters(newFilters);
-  };
+  }, []);
 
   const handleSyncWallets = async () => {
     setIsSyncing(true);

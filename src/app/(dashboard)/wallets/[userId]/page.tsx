@@ -46,7 +46,6 @@ export default function UserWalletsPage() {
   const [syncing, setSyncing] = useState(false);
   const [user, setUser] = useState<UserWithWallets | null>(null);
   const [wallets, setWallets] = useState<InternalWallet[]>([]);
-  const [refreshKey, setRefreshKey] = useState(0);
 
   const userId = params.userId as string;
 
@@ -81,11 +80,12 @@ export default function UserWalletsPage() {
     if (profile && userId) {
       fetchUserWallets();
     }
-  }, [profile, userId, refreshKey, fetchUserWallets]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile, userId]);
 
-  const handleRefresh = () => {
-    setRefreshKey((prev) => prev + 1);
-  };
+  const handleRefresh = useCallback(() => {
+    fetchUserWallets();
+  }, [fetchUserWallets]);
 
   const handleSyncWallets = async () => {
     if (!user?.kycProfile?.bridgeCustomerId) {
@@ -124,7 +124,7 @@ export default function UserWalletsPage() {
       });
 
       // Refresh the wallets data
-      handleRefresh();
+      fetchUserWallets();
     } catch (error) {
       toast({
         title: "Error de sincronización",
@@ -165,7 +165,15 @@ export default function UserWalletsPage() {
     navigator.clipboard.writeText(bridgeId);
     toast({
       title: "Copiado",
-      description: "Bridge ID copiado al portapapeles",
+      description: "Bridge Customer ID copiado al portapapeles",
+    });
+  };
+
+  const handleCopyBridgeWalletId = (bridgeWalletId: string) => {
+    navigator.clipboard.writeText(bridgeWalletId);
+    toast({
+      title: "Copiado",
+      description: "Bridge Wallet ID copiado al portapapeles",
     });
   };
 
@@ -313,7 +321,7 @@ export default function UserWalletsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => router.back()}
+            onClick={() => router.push("/wallets")}
             className="flex items-center gap-2"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -566,13 +574,26 @@ export default function UserWalletsPage() {
                           className="w-6 h-6 rounded-full flex-shrink-0"
                           style={{ backgroundColor: chainInfo.color }}
                         />
-                        <div>
+                        <div className="flex-1">
                           <CardTitle className="text-lg">
                             {chainInfo.displayName}
                           </CardTitle>
-                          <CardDescription>
-                            Wallet ID: {wallet.bridgeWalletId}
-                          </CardDescription>
+                          <div className="flex items-center gap-2">
+                            <CardDescription>
+                              Bridge ID: {wallet.bridgeWalletId}
+                            </CardDescription>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCopyBridgeWalletId(wallet.bridgeWalletId);
+                              }}
+                              className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                       <div className="flex gap-2">

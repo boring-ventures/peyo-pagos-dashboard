@@ -7,6 +7,8 @@ import type {
   BridgeTransactionHistoryResponse,
   BridgeTransaction,
   WalletTransactionApiResponse,
+  BridgeWallet,
+  BridgeWalletBalance,
 } from "@/types/wallet";
 
 const bridgeApiKey = process.env.BRIDGE_API_KEY;
@@ -95,6 +97,47 @@ async function fetchTransactionHistoryFromBridge(
       error
     );
     throw error;
+  }
+}
+
+// Helper function to fetch wallet details (including balances) from Bridge API
+async function fetchWalletDetailsFromBridge(
+  bridgeWalletId: string,
+  bridgeCustomerId: string
+): Promise<BridgeWallet | null> {
+  if (!bridgeApiKey) {
+    // Return mock data for development
+    console.log("No Bridge API key found, skipping balance fetch");
+    return null;
+  }
+
+  try {
+    const response = await fetch(
+      `${bridgeApiUrl}/customers/${bridgeCustomerId}/wallets/${bridgeWalletId}`,
+      {
+        headers: {
+          "Api-Key": bridgeApiKey,
+          accept: "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      // If wallet not found or other error, log but don't throw
+      console.warn(
+        `Bridge API wallet details error: ${response.status} ${response.statusText}`
+      );
+      return null;
+    }
+
+    const walletData: BridgeWallet = await response.json();
+    return walletData;
+  } catch (error) {
+    console.error(
+      `Error fetching wallet details for wallet ${bridgeWalletId}:`,
+      error
+    );
+    return null;
   }
 }
 
@@ -254,7 +297,11 @@ export async function GET(
         profile: { userId },
       },
       include: {
-        profile: true,
+        profile: {
+          include: {
+            kycProfile: true,
+          },
+        },
       },
     });
 
@@ -325,6 +372,24 @@ export async function GET(
       orderBy: { lastSyncAt: "desc" },
     });
 
+    // Fetch wallet balances from Bridge API
+    let walletBalances: BridgeWalletBalance[] = [];
+    if (wallet.profile?.kycProfile?.bridgeCustomerId) {
+      try {
+        const bridgeWalletDetails = await fetchWalletDetailsFromBridge(
+          wallet.bridgeWalletId,
+          wallet.profile.kycProfile.bridgeCustomerId
+        );
+        
+        if (bridgeWalletDetails?.balances) {
+          walletBalances = bridgeWalletDetails.balances;
+        }
+      } catch (error) {
+        console.error("Error fetching wallet balances:", error);
+        // Continue without balances rather than failing the entire request
+      }
+    }
+
     // Build pagination metadata
     const totalPages = Math.ceil(totalCount / limit);
     const pagination = {
@@ -341,6 +406,7 @@ export async function GET(
         ...wallet,
         transactionCount: totalCount,
         lastTransactionAt: transactions[0]?.bridgeCreatedAt || null,
+        balances: walletBalances,
       },
       transactions,
       pagination,

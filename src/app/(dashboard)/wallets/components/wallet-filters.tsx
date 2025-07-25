@@ -36,14 +36,21 @@ export function WalletFilters({
     [onFiltersChange]
   );
 
-  // Debounced search
+  // Sync searchInput with external filter changes (like clearing filters)
+  useEffect(() => {
+    setSearchInput(filters.search);
+  }, [filters.search]);
+
+  // Debounced search - fix the infinite loop by removing filters from dependency
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      handleFiltersChange({ ...filters, search: searchInput });
+      if (searchInput !== filters.search) {
+        handleFiltersChange({ ...filters, search: searchInput });
+      }
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [searchInput, filters, handleFiltersChange]);
+  }, [searchInput, handleFiltersChange, filters.search]); // Only depend on the search value, not the entire filters object
 
   const handleSearchChange = (value: string) => {
     setSearchInput(value);

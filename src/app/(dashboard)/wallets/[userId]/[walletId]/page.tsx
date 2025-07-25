@@ -14,6 +14,7 @@ import {
   TrendingUp,
   Filter,
   RotateCw,
+  DollarSign,
 } from "lucide-react";
 import {
   Card,
@@ -135,7 +136,8 @@ export default function WalletTransactionHistoryPage() {
     if (profile && userId && walletId) {
       fetchTransactionHistory();
     }
-  }, [profile, userId, walletId, fetchTransactionHistory]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile, userId, walletId]);
 
   // Check if user has transaction history access (only SUPERADMIN)
   if (profile && profile.role !== "SUPERADMIN") {
@@ -150,7 +152,7 @@ export default function WalletTransactionHistoryPage() {
           </p>
           <Button
             variant="outline"
-            onClick={() => router.back()}
+            onClick={() => router.push(`/wallets/${userId}`)}
             className="mt-4"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -294,7 +296,7 @@ export default function WalletTransactionHistoryPage() {
           </p>
           <Button
             variant="outline"
-            onClick={() => router.back()}
+            onClick={() => router.push(`/wallets/${userId}`)}
             className="mt-4"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -312,7 +314,11 @@ export default function WalletTransactionHistoryPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <Button variant="outline" size="icon" onClick={() => router.back()}>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => router.push(`/wallets/${userId}`)}
+          >
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
@@ -415,6 +421,69 @@ export default function WalletTransactionHistoryPage() {
               </Badge>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Wallet Balances */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <DollarSign className="h-5 w-5" />
+            <span>Saldos de la Wallet</span>
+          </CardTitle>
+          <CardDescription>
+            Saldos actuales en diferentes criptomonedas
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {wallet.balances && wallet.balances.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {wallet.balances.map((balance, index) => (
+                <div
+                  key={`${balance.currency}-${balance.chain}-${index}`}
+                  className="p-4 border rounded-lg bg-card"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-medium text-muted-foreground">
+                        {balance.currency.toUpperCase()}
+                      </h4>
+                      <p className="text-2xl font-bold">
+                        {parseFloat(balance.balance).toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 6,
+                        })}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <Badge
+                        variant="secondary"
+                        style={{
+                          backgroundColor: `${getChainInfo(balance.chain).color}20`,
+                          color: getChainInfo(balance.chain).color,
+                        }}
+                      >
+                        {getChainInfo(balance.chain).displayName}
+                      </Badge>
+                      {balance.contract_address && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Contract: {formatAddress(balance.contract_address)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <DollarSign className="mx-auto h-12 w-12 text-muted-foreground" />
+              <h3 className="mt-4 text-lg font-semibold">Sin saldos disponibles</h3>
+              <p className="text-muted-foreground">
+                No se encontraron saldos para esta wallet o no se pudo conectar con Bridge API.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

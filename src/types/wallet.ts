@@ -2,7 +2,15 @@ import type { JsonValue } from "@prisma/client/runtime/library";
 
 // Wallet types based on Bridge API response format
 
-// Bridge API Wallet Response
+// Bridge API Wallet Balance
+export interface BridgeWalletBalance {
+  balance: string;
+  currency: string;
+  chain: string;
+  contract_address: string | null;
+}
+
+// Bridge API Wallet Response (including balances)
 export interface BridgeWallet {
   id: string;
   chain: string;
@@ -10,6 +18,7 @@ export interface BridgeWallet {
   tags: string[];
   created_at: string;
   updated_at: string;
+  balances?: BridgeWalletBalance[];
 }
 
 // Bridge API Response Format
@@ -226,11 +235,12 @@ export interface TransactionSyncResponse {
   message: string;
 }
 
-// Wallet with Transactions (for display purposes)
+// Wallet with Transactions and Balances (for display purposes)
 export interface WalletWithTransactions extends Wallet {
   transactions?: Transaction[];
   transactionCount?: number;
   lastTransactionAt?: Date | null;
+  balances?: BridgeWalletBalance[];
   profile?: {
     userId: string;
     firstName: string | null;
