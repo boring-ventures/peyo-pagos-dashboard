@@ -37,6 +37,40 @@ export interface CardWithProfile extends Card {
   };
 }
 
+// User with Cards Types (similar to wallets structure)
+export interface UserWithCards {
+  id: string;
+  userId: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+  status: string;
+  createdAt: Date;
+  cardsCount: number;
+  cards?: CardSummary[];
+}
+
+export interface UsersWithCardsResponse {
+  users: UserWithCards[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+// Individual User Cards Response (for /api/cards/[userId])
+export interface UserCardsResponse {
+  cards: CardSummary[];
+  total: number;
+  page: number;
+  limit: number;
+  user: {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string | null;
+  };
+}
+
 // Frontend Display Types
 export interface CardSummary {
   id: string;
@@ -63,20 +97,24 @@ export interface CardsStatsResponse {
   frozenCards: number;
   totalBalance: number;
   totalAvailableBalance: number;
-}
-
-export interface CardsResponse {
-  cards: CardSummary[];
-  total: number;
-  page: number;
-  limit: number;
+  totalUsers: number;
+  usersWithCards: number;
 }
 
 // Card Status Types
 export type CardStatus = "active" | "terminated" | "frozen" | "inactive";
 
-// Card Filters
+// Card Filters (updated for user-centric view)
 export interface CardFilters {
+  hasCards?: "true" | "false" | "all";
+  cardStatus?: CardStatus;
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+// Individual card filters for user-specific pages
+export interface UserCardFilters {
   status?: CardStatus;
   search?: string;
   page?: number;

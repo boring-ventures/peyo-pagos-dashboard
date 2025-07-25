@@ -1,22 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { Plus, CreditCard, User, DollarSign } from "lucide-react";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -30,216 +30,221 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useCreateCard } from "@/hooks/use-cards";
-import { Loader } from "@/components/ui/loader";
+import { Loader2, Plus, CreditCard } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
+import { useCreateCardForProfile } from "@/hooks/use-cards";
 
-// Form validation schema
-const createCardSchema = z.object({
-  profileId: z.string().min(1, "Please select a user profile"),
+const formSchema = z.object({
+  profileId: z.string().min(1, "Please select a user"),
   amount: z.coerce
     .number()
     .min(10, "Minimum amount is $10")
     .max(10000, "Maximum amount is $10,000"),
 });
 
-type CreateCardFormData = z.infer<typeof createCardSchema>;
+type FormData = z.infer<typeof formSchema>;
 
-interface Profile {
+interface EligibleProfile {
   id: string;
+  userId: string;
   firstName: string | null;
   lastName: string | null;
   email: string | null;
-  kycProfile?: {
-    bridgeCustomerId: string | null;
-  };
 }
 
 export function CreateCardModal() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [open, setOpen] = useState(false);
+  const [profiles, setProfiles] = useState<EligibleProfile[]>([]);
   const [loadingProfiles, setLoadingProfiles] = useState(false);
 
-  const createCard = useCreateCard();
+  const createCard = useCreateCardForProfile();
 
-  const form = useForm<CreateCardFormData>({
-    resolver: zodResolver(createCardSchema),
+  const form = useForm<FormData>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
       profileId: "",
       amount: 100,
     },
   });
 
-  // Fetch eligible profiles when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      fetchEligibleProfiles();
-    }
-  }, [isOpen]);
-
   const fetchEligibleProfiles = async () => {
     setLoadingProfiles(true);
     try {
-      // Fetch users with approved KYC who can have cards
-      const response = await fetch("/api/profiles?role=USER&kycApproved=true");
-      if (response.ok) {
-        const data = await response.json();
-        setProfiles(data.profiles || []);
-      }
-    } catch (error) {
-      console.error("Error fetching profiles:", error);
+      const response = await fetch("/api/profiles?kycApproved=true");
+      if (!response.ok) throw new Error("Failed to fetch profiles");
+
+      const data = await response.json();
+      setProfiles(data.profiles || []);
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to load eligible users. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setLoadingProfiles(false);
     }
   };
 
-  const onSubmit = async (data: CreateCardFormData) => {
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    if (newOpen) {
+      fetchEligibleProfiles();
+    } else {
+      form.reset();
+    }
+  };
+
+  const onSubmit = async (data: FormData) => {
     try {
       await createCard.mutateAsync(data);
-      setIsOpen(false);
+      setOpen(false);
       form.reset();
-    } catch (error) {
+    } catch {
       // Error handling is done in the hook
-      console.error("Error creating card:", error);
     }
   };
 
-  const handleOpenChange = (open: boolean) => {
-    setIsOpen(open);
-    if (!open) {
-      form.reset();
-    }
-  };
-
-  const formatDisplayName = (profile: Profile) => {
+  const getUserDisplayName = (profile: EligibleProfile) => {
     const name = [profile.firstName, profile.lastName]
       .filter(Boolean)
       .join(" ");
-    return name || profile.email || "Unknown User";
+    return name || profile.email || "Usuario Sin Nombre";
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button>
+        <Button className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
-          Create Card
+          Crear Tarjeta
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5" />
-            Create New Card
+            Crear Nueva Tarjeta PayWithMoon
           </DialogTitle>
+          <DialogDescription>
+            Crea una nueva tarjeta de débito virtual para un usuario con KYC
+            aprobado. La tarjeta será procesada a través de PayWithMoon.
+          </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Profile Selection */}
             <FormField
               control={form.control}
               name="profileId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    User Profile
-                  </FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <FormLabel>Usuario Elegible *</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    disabled={loadingProfiles}
+                  >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a user profile" />
+                        <SelectValue
+                          placeholder={
+                            loadingProfiles
+                              ? "Cargando usuarios..."
+                              : "Selecciona un usuario con KYC aprobado"
+                          }
+                        />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
                       {loadingProfiles ? (
-                        <div className="flex items-center justify-center p-4">
-                          <Loader size="sm" />
-                          <span className="ml-2 text-sm text-muted-foreground">
-                            Loading profiles...
-                          </span>
-                        </div>
+                        <SelectItem value="" disabled>
+                          <div className="flex items-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Cargando...
+                          </div>
+                        </SelectItem>
                       ) : profiles.length === 0 ? (
-                        <div className="p-4 text-center text-sm text-muted-foreground">
-                          No eligible profiles found
-                        </div>
+                        <SelectItem value="" disabled>
+                          No hay usuarios elegibles
+                        </SelectItem>
                       ) : (
                         profiles.map((profile) => (
                           <SelectItem key={profile.id} value={profile.id}>
                             <div className="flex flex-col">
                               <span className="font-medium">
-                                {formatDisplayName(profile)}
+                                {getUserDisplayName(profile)}
                               </span>
-                              {profile.email && (
-                                <span className="text-xs text-muted-foreground">
-                                  {profile.email}
-                                </span>
-                              )}
+                              <span className="text-xs text-muted-foreground">
+                                ID: {profile.userId.slice(0, 8)}... •{" "}
+                                {profile.email}
+                              </span>
                             </div>
                           </SelectItem>
                         ))
                       )}
                     </SelectContent>
                   </Select>
-                  <FormDescription>
-                    Select a user with approved KYC to create a card for
-                  </FormDescription>
                   <FormMessage />
+                  <p className="text-xs text-muted-foreground">
+                    Solo se muestran usuarios con KYC aprobado y Bridge Customer
+                    ID.
+                  </p>
                 </FormItem>
               )}
             />
 
-            {/* Initial Amount */}
             <FormField
               control={form.control}
               name="amount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4" />
-                    Initial Amount (USD)
-                  </FormLabel>
+                  <FormLabel>Monto Inicial (USD) *</FormLabel>
                   <FormControl>
-                    <Input
-                      type="number"
-                      step="1"
-                      min="10"
-                      max="10000"
-                      placeholder="100"
-                      {...field}
-                    />
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                        $
+                      </span>
+                      <Input
+                        type="number"
+                        placeholder="100"
+                        className="pl-7"
+                        min={10}
+                        max={10000}
+                        step={1}
+                        {...field}
+                      />
+                    </div>
                   </FormControl>
-                  <FormDescription>
-                    Set the initial balance for the card ($10 - $10,000)
-                  </FormDescription>
                   <FormMessage />
+                  <p className="text-xs text-muted-foreground">
+                    Monto entre $10 y $10,000 USD. Este será el balance inicial
+                    de la tarjeta.
+                  </p>
                 </FormItem>
               )}
             />
 
-            <div className="flex justify-end gap-3">
+            <DialogFooter>
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => handleOpenChange(false)}
+                onClick={() => setOpen(false)}
                 disabled={createCard.isPending}
               >
-                Cancel
+                Cancelar
               </Button>
-              <Button type="submit" disabled={createCard.isPending}>
-                {createCard.isPending ? (
-                  <>
-                    <Loader size="sm" className="mr-2" />
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Create Card
-                  </>
+              <Button
+                type="submit"
+                disabled={createCard.isPending}
+                className="flex items-center gap-2"
+              >
+                {createCard.isPending && (
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 )}
+                {createCard.isPending ? "Creando..." : "Crear Tarjeta"}
               </Button>
-            </div>
+            </DialogFooter>
           </form>
         </Form>
       </DialogContent>

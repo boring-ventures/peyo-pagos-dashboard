@@ -33,13 +33,15 @@ export async function GET() {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Get card statistics
+    // Get card and user statistics
     const [
       totalCards,
       activeCards,
       terminatedCards,
       frozenCards,
       balanceStats,
+      totalUsers,
+      usersWithCards,
     ] = await Promise.all([
       // Total cards for USER profiles
       prisma.card.count({
@@ -81,6 +83,19 @@ export async function GET() {
           availableBalance: true,
         },
       }),
+      // Total USER profiles
+      prisma.profile.count({
+        where: { role: UserRole.USER },
+      }),
+      // Users with at least one card
+      prisma.profile.count({
+        where: {
+          role: UserRole.USER,
+          cards: {
+            some: {},
+          },
+        },
+      }),
     ]);
 
     const response: CardsStatsResponse = {
@@ -90,6 +105,8 @@ export async function GET() {
       frozenCards,
       totalBalance: Number(balanceStats._sum.balance || 0),
       totalAvailableBalance: Number(balanceStats._sum.availableBalance || 0),
+      totalUsers,
+      usersWithCards,
     };
 
     return NextResponse.json(response);

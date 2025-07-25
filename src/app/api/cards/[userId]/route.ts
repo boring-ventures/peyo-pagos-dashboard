@@ -3,39 +3,16 @@ import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import prisma from "@/lib/prisma";
 import { UserRole } from "@prisma/client";
+import { UserCardsResponse, CardSummary } from "@/types/card";
 
-// Types for the user-centric cards response
-interface UserWithCards {
-  id: string;
-  userId: string;
-  firstName: string | null;
-  lastName: string | null;
-  email: string | null;
-  status: string;
-  createdAt: Date;
-  cardsCount: number;
-  cards?: {
-    id: string;
-    moonCardId: string;
-    balance: number;
-    availableBalance: number;
-    terminated: boolean;
-    frozen: boolean;
-    isActive: boolean;
-    createdAt: Date;
-  }[];
-}
-
-interface UsersWithCardsResponse {
-  users: UserWithCards[];
-  total: number;
-  page: number;
-  limit: number;
-}
-
-// GET /api/cards - List users with their card counts and information
-export async function GET(request: NextRequest) {
+// GET /api/cards/[userId] - Get cards for a specific user
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ userId: string }> }
+) {
   try {
+    const { userId } = await params;
+
     // Check authentication
     const supabase = createRouteHandlerClient({ cookies });
     const {
@@ -64,110 +41,105 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
-    const hasCards = searchParams.get("hasCards"); // 'true', 'false', or null for all
-    const cardStatus = searchParams.get("cardStatus"); // 'active', 'frozen', 'terminated', 'inactive'
+    const status = searchParams.get("status");
     const search = searchParams.get("search");
 
     const skip = (page - 1) * limit;
 
-    // Build where clause for users (only USER role profiles)
-    const userWhere: Record<string, unknown> = {
-      role: UserRole.USER,
-    };
+    // First, find the user profile to make sure it exists and is a USER
+    const targetProfile = await prisma.profile.findUnique({
+      where: { userId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+      },
+    });
 
-    if (search) {
-      userWhere.OR = [
-        { firstName: { contains: search, mode: "insensitive" } },
-        { lastName: { contains: search, mode: "insensitive" } },
-        { email: { contains: search, mode: "insensitive" } },
-      ];
+    if (!targetProfile) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Build card filter for hasCards
-    let cardFilter: Record<string, unknown> = {};
-    if (cardStatus) {
-      switch (cardStatus) {
+    if (targetProfile.role !== UserRole.USER) {
+      return NextResponse.json(
+        { error: "Cards can only be viewed for USER profiles" },
+        { status: 400 }
+      );
+    }
+
+    // Build where clause for cards
+    const cardWhere: Record<string, unknown> = {
+      profileId: targetProfile.id,
+    };
+
+    if (status) {
+      switch (status) {
         case "active":
-          cardFilter = { isActive: true, terminated: false, frozen: false };
+          cardWhere.isActive = true;
+          cardWhere.terminated = false;
+          cardWhere.frozen = false;
           break;
         case "terminated":
-          cardFilter = { terminated: true };
+          cardWhere.terminated = true;
           break;
         case "frozen":
-          cardFilter = { frozen: true };
+          cardWhere.frozen = true;
           break;
         case "inactive":
-          cardFilter = { isActive: false };
+          cardWhere.isActive = false;
           break;
       }
     }
 
-    // Get users with their card counts
-    const [users, total] = await Promise.all([
-      prisma.profile.findMany({
-        where: userWhere,
-        include: {
-          cards: {
-            where: cardFilter,
-            select: {
-              id: true,
-              moonCardId: true,
-              balance: true,
-              availableBalance: true,
-              terminated: true,
-              frozen: true,
-              isActive: true,
-              createdAt: true,
-            },
-          },
-        },
+    if (search) {
+      cardWhere.OR = [
+        { moonCardId: { contains: search, mode: "insensitive" } },
+        { cardProductId: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    // Get cards for this user
+    const [cards, total] = await Promise.all([
+      prisma.card.findMany({
+        where: cardWhere,
         orderBy: { createdAt: "desc" },
         skip,
         take: limit,
       }),
-      prisma.profile.count({ where: userWhere }),
+      prisma.card.count({ where: cardWhere }),
     ]);
 
-    // Filter users based on hasCards parameter
-    let filteredUsers = users;
-    if (hasCards === "true") {
-      filteredUsers = users.filter((user) => user.cards.length > 0);
-    } else if (hasCards === "false") {
-      filteredUsers = users.filter((user) => user.cards.length === 0);
-    }
-
-    // Transform for response
-    const transformedUsers: UserWithCards[] = filteredUsers.map((user) => ({
-      id: user.id,
-      userId: user.userId,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      status: user.status,
-      createdAt: user.createdAt,
-      cardsCount: user.cards.length,
-      cards: user.cards.map((card) => ({
-        id: card.id,
-        moonCardId: card.moonCardId,
-        balance: Number(card.balance),
-        availableBalance: Number(card.availableBalance),
-        terminated: card.terminated,
-        frozen: card.frozen,
-        isActive: card.isActive,
-        createdAt: card.createdAt,
-      })),
+    // Transform cards for response (excluding sensitive data)
+    const transformedCards: CardSummary[] = cards.map((card) => ({
+      id: card.id,
+      moonCardId: card.moonCardId,
+      balance: Number(card.balance),
+      availableBalance: Number(card.availableBalance),
+      displayExpiration: card.displayExpiration,
+      terminated: card.terminated,
+      frozen: card.frozen,
+      isActive: card.isActive,
+      createdAt: card.createdAt,
     }));
 
-    const response: UsersWithCardsResponse = {
-      users: transformedUsers,
-      total: hasCards ? filteredUsers.length : total,
+    const response: UserCardsResponse = {
+      cards: transformedCards,
+      total,
       page,
       limit,
+      user: {
+        id: targetProfile.id,
+        firstName: targetProfile.firstName,
+        lastName: targetProfile.lastName,
+        email: targetProfile.email,
+      },
     };
 
     return NextResponse.json(response);
   } catch (error) {
-    console.error("Error fetching users with cards:", error);
+    console.error("Error fetching user cards:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -175,9 +147,14 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/cards - Create a new card via PayWithMoon
-export async function POST(request: NextRequest) {
+// POST /api/cards/[userId] - Create a new card for a specific user
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ userId: string }> }
+) {
   try {
+    const { userId } = await params;
+
     // Check authentication
     const supabase = createRouteHandlerClient({ cookies });
     const {
@@ -204,28 +181,28 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { profileId, amount = 100 } = body;
+    const { amount = 100 } = body;
 
-    // Validate that the profile exists and is a USER
-    const profile = await prisma.profile.findUnique({
-      where: { id: profileId },
+    // Find the target profile
+    const targetProfile = await prisma.profile.findUnique({
+      where: { userId },
       include: { kycProfile: true },
     });
 
-    if (!profile) {
-      return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+    if (!targetProfile) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    if (profile.role !== UserRole.USER) {
+    if (targetProfile.role !== UserRole.USER) {
       return NextResponse.json(
         { error: "Cards can only be created for USER profiles" },
         { status: 400 }
       );
     }
 
-    if (!profile.kycProfile?.bridgeCustomerId) {
+    if (!targetProfile.kycProfile?.bridgeCustomerId) {
       return NextResponse.json(
-        { error: "Profile must have approved KYC to create cards" },
+        { error: "User must have approved KYC to create cards" },
         { status: 400 }
       );
     }
@@ -234,12 +211,12 @@ export async function POST(request: NextRequest) {
     // For now, we simulate the response structure
     const moonResponse = {
       card: {
-        id: `moon_card_${Date.now()}`, // This would come from PayWithMoon
+        id: `moon_card_${Date.now()}`,
         balance: amount,
         available_balance: amount,
         expiration: new Date(
           Date.now() + 4 * 365 * 24 * 60 * 60 * 1000
-        ).toISOString(), // 4 years from now
+        ).toISOString(),
         display_expiration: "12/28",
         terminated: false,
         card_product_id: "default_product_id",
@@ -253,7 +230,7 @@ export async function POST(request: NextRequest) {
     // Store card in database
     const card = await prisma.card.create({
       data: {
-        profileId: profile.id,
+        profileId: targetProfile.id,
         moonCardId: moonResponse.card.id,
         balance: moonResponse.card.balance,
         availableBalance: moonResponse.card.available_balance,
@@ -266,16 +243,6 @@ export async function POST(request: NextRequest) {
         terminated: moonResponse.card.terminated,
         frozen: moonResponse.card.frozen,
       },
-      include: {
-        profile: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
-        },
-      },
     });
 
     // Create event for card creation
@@ -284,7 +251,7 @@ export async function POST(request: NextRequest) {
         type: "USER_CARD_CREATED",
         module: "PROFILE",
         description: "User card created via PayWithMoon",
-        profileId: profile.id,
+        profileId: targetProfile.id,
         metadata: {
           cardId: card.id,
           moonCardId: card.moonCardId,
@@ -294,7 +261,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Return card data (excluding sensitive information)
-    const responseCard = {
+    const responseCard: CardSummary = {
       id: card.id,
       moonCardId: card.moonCardId,
       balance: Number(card.balance),
@@ -304,12 +271,11 @@ export async function POST(request: NextRequest) {
       frozen: card.frozen,
       isActive: card.isActive,
       createdAt: card.createdAt,
-      profile: card.profile,
     };
 
     return NextResponse.json({ card: responseCard }, { status: 201 });
   } catch (error) {
-    console.error("Error creating card:", error);
+    console.error("Error creating card for user:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

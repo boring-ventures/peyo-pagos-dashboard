@@ -1,14 +1,42 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  CardsResponse,
+  UsersWithCardsResponse,
+  UserCardsResponse,
   CardsStatsResponse,
-  CardSummary,
   CardFilters,
+  UserCardFilters,
 } from "@/types/card";
 import { toast } from "@/components/ui/use-toast";
 
-// Fetch cards with pagination and filtering
-export function useCards(filters: CardFilters = {}) {
+// Fetch users with their card counts and information
+export function useUsersWithCards(filters: CardFilters = {}) {
+  const { page = 1, limit = 10, hasCards, cardStatus, search } = filters;
+
+  const queryParams = new URLSearchParams({
+    page: page.toString(),
+    limit: limit.toString(),
+    ...(hasCards && { hasCards }),
+    ...(cardStatus && { cardStatus }),
+    ...(search && { search }),
+  });
+
+  return useQuery<UsersWithCardsResponse>({
+    queryKey: [
+      "users-with-cards",
+      { page, limit, hasCards, cardStatus, search },
+    ],
+    queryFn: async () => {
+      const response = await fetch(`/api/cards?${queryParams}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch users with cards");
+      }
+      return response.json();
+    },
+  });
+}
+
+// Fetch cards for a specific user
+export function useUserCards(userId: string, filters: UserCardFilters = {}) {
   const { page = 1, limit = 10, status, search } = filters;
 
   const queryParams = new URLSearchParams({
@@ -18,15 +46,16 @@ export function useCards(filters: CardFilters = {}) {
     ...(search && { search }),
   });
 
-  return useQuery<CardsResponse>({
-    queryKey: ["cards", { page, limit, status, search }],
+  return useQuery<UserCardsResponse>({
+    queryKey: ["user-cards", userId, { page, limit, status, search }],
     queryFn: async () => {
-      const response = await fetch(`/api/cards?${queryParams}`);
+      const response = await fetch(`/api/cards/${userId}?${queryParams}`);
       if (!response.ok) {
-        throw new Error("Failed to fetch cards");
+        throw new Error("Failed to fetch user cards");
       }
       return response.json();
     },
+    enabled: !!userId,
   });
 }
 
@@ -44,23 +73,52 @@ export function useCardsStats() {
   });
 }
 
-// Fetch a specific card by ID
-export function useCard(cardId: string) {
-  return useQuery<{ card: CardSummary }>({
-    queryKey: ["cards", cardId],
-    queryFn: async () => {
-      const response = await fetch(`/api/cards/${cardId}`);
+// Create a new card for a specific user
+export function useCreateCard() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: { userId: string; amount?: number }) => {
+      const response = await fetch(`/api/cards/${data.userId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ amount: data.amount }),
+      });
+
       if (!response.ok) {
-        throw new Error("Failed to fetch card");
+        const error = await response.json();
+        throw new Error(error.error || "Failed to create card");
       }
+
       return response.json();
     },
-    enabled: !!cardId,
+    onSuccess: (_, variables) => {
+      // Invalidate and refetch card queries
+      queryClient.invalidateQueries({ queryKey: ["users-with-cards"] });
+      queryClient.invalidateQueries({
+        queryKey: ["user-cards", variables.userId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["cards", "stats"] });
+
+      toast({
+        title: "Success",
+        description: "Card created successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 }
 
-// Create a new card
-export function useCreateCard() {
+// Legacy hook for backwards compatibility - creates card for a user via profileId
+export function useCreateCardForProfile() {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -82,7 +140,9 @@ export function useCreateCard() {
     },
     onSuccess: () => {
       // Invalidate and refetch card queries
-      queryClient.invalidateQueries({ queryKey: ["cards"] });
+      queryClient.invalidateQueries({ queryKey: ["users-with-cards"] });
+      queryClient.invalidateQueries({ queryKey: ["cards", "stats"] });
+
       toast({
         title: "Success",
         description: "Card created successfully",
@@ -98,37 +158,22 @@ export function useCreateCard() {
   });
 }
 
-// Update a card (freeze/unfreeze, activate/deactivate)
+// These hooks would need individual card management endpoints
+// For now, they're placeholders - you might want to add card-specific endpoints later
 export function useUpdateCard() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      cardId,
-      data,
-    }: {
-      cardId: string;
-      data: { frozen?: boolean; isActive?: boolean };
-    }) => {
-      const response = await fetch(`/api/cards/${cardId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to update card");
-      }
-
-      return response.json();
+    mutationFn: async () => {
+      // This would need a new API endpoint for individual card management
+      throw new Error(
+        "Individual card updates not yet implemented in user-centric model"
+      );
     },
-    onSuccess: (_, variables) => {
-      // Invalidate and refetch card queries
-      queryClient.invalidateQueries({ queryKey: ["cards"] });
-      queryClient.invalidateQueries({ queryKey: ["cards", variables.cardId] });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users-with-cards"] });
+      queryClient.invalidateQueries({ queryKey: ["cards", "stats"] });
+
       toast({
         title: "Success",
         description: "Card updated successfully",
@@ -144,26 +189,20 @@ export function useUpdateCard() {
   });
 }
 
-// Delete (deactivate) a card
 export function useDeleteCard() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (cardId: string) => {
-      const response = await fetch(`/api/cards/${cardId}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to delete card");
-      }
-
-      return response.json();
+    mutationFn: async () => {
+      // This would need a new API endpoint for individual card management
+      throw new Error(
+        "Individual card deletion not yet implemented in user-centric model"
+      );
     },
     onSuccess: () => {
-      // Invalidate and refetch card queries
-      queryClient.invalidateQueries({ queryKey: ["cards"] });
+      queryClient.invalidateQueries({ queryKey: ["users-with-cards"] });
+      queryClient.invalidateQueries({ queryKey: ["cards", "stats"] });
+
       toast({
         title: "Success",
         description: "Card deactivated successfully",

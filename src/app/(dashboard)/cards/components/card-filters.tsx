@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Filter } from "lucide-react";
+import { Search, Filter, CreditCard } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,9 +21,16 @@ interface CardFiltersProps {
 export function CardFilters({ filters, onFiltersChange }: CardFiltersProps) {
   const [searchInput, setSearchInput] = useState(filters.search || "");
 
-  const handleStatusChange = (status: string) => {
-    const newStatus = status === "all" ? undefined : (status as CardStatus);
-    onFiltersChange({ ...filters, status: newStatus, page: 1 });
+  const handleHasCardsChange = (hasCards: string) => {
+    const newHasCards =
+      hasCards === "all" ? "all" : (hasCards as "true" | "false");
+    onFiltersChange({ ...filters, hasCards: newHasCards, page: 1 });
+  };
+
+  const handleCardStatusChange = (cardStatus: string) => {
+    const newStatus =
+      cardStatus === "all" ? undefined : (cardStatus as CardStatus);
+    onFiltersChange({ ...filters, cardStatus: newStatus, page: 1 });
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -33,10 +40,15 @@ export function CardFilters({ filters, onFiltersChange }: CardFiltersProps) {
 
   const handleClearFilters = () => {
     setSearchInput("");
-    onFiltersChange({ page: 1, limit: filters.limit });
+    onFiltersChange({
+      page: 1,
+      limit: filters.limit,
+      hasCards: "all",
+    });
   };
 
-  const hasActiveFilters = filters.status || filters.search;
+  const hasActiveFilters =
+    filters.hasCards !== "all" || filters.cardStatus || filters.search;
 
   return (
     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -46,32 +58,48 @@ export function CardFilters({ filters, onFiltersChange }: CardFiltersProps) {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search cards, users, or card IDs..."
+              placeholder="Buscar usuarios por nombre o email..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               className="pl-9"
             />
           </div>
           <Button type="submit" variant="outline">
-            Search
+            Buscar
           </Button>
         </form>
 
-        {/* Status Filter */}
+        {/* Has Cards Filter */}
         <Select
-          value={filters.status || "all"}
-          onValueChange={handleStatusChange}
+          value={filters.hasCards || "all"}
+          onValueChange={handleHasCardsChange}
         >
-          <SelectTrigger className="w-[140px]">
-            <Filter className="h-4 w-4" />
-            <SelectValue placeholder="Status" />
+          <SelectTrigger className="w-[160px]">
+            <CreditCard className="h-4 w-4" />
+            <SelectValue placeholder="Tarjetas" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="frozen">Frozen</SelectItem>
-            <SelectItem value="terminated">Terminated</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
+            <SelectItem value="all">Todos los Usuarios</SelectItem>
+            <SelectItem value="true">Con Tarjetas</SelectItem>
+            <SelectItem value="false">Sin Tarjetas</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Card Status Filter */}
+        <Select
+          value={filters.cardStatus || "all"}
+          onValueChange={handleCardStatusChange}
+        >
+          <SelectTrigger className="w-[160px]">
+            <Filter className="h-4 w-4" />
+            <SelectValue placeholder="Estado" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los Estados</SelectItem>
+            <SelectItem value="active">Activas</SelectItem>
+            <SelectItem value="frozen">Congeladas</SelectItem>
+            <SelectItem value="terminated">Terminadas</SelectItem>
+            <SelectItem value="inactive">Inactivas</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -79,7 +107,7 @@ export function CardFilters({ filters, onFiltersChange }: CardFiltersProps) {
       {/* Clear Filters */}
       {hasActiveFilters && (
         <Button variant="outline" onClick={handleClearFilters}>
-          Clear Filters
+          Limpiar Filtros
         </Button>
       )}
     </div>

@@ -3,15 +3,26 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCardsStats } from "@/hooks/use-cards";
-import { CreditCard, DollarSign, Snowflake, Ban } from "lucide-react";
+import {
+  CreditCard,
+  DollarSign,
+  Snowflake,
+  Ban,
+  Users,
+  UserCheck,
+} from "lucide-react";
 
-export function CardStats() {
+interface CardStatsProps {
+  refreshKey?: number;
+}
+
+export function CardStats({}: CardStatsProps) {
   const { data: stats, isLoading, error } = useCardsStats();
 
   if (isLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {[...Array(4)].map((_, i) => (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        {[...Array(6)].map((_, i) => (
           <Card key={i}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <Skeleton className="h-4 w-20" />
@@ -29,7 +40,7 @@ export function CardStats() {
 
   if (error) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader>
             <CardTitle className="text-sm text-muted-foreground">
@@ -56,62 +67,93 @@ export function CardStats() {
   };
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      {/* User Statistics */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Cards</CardTitle>
+          <CardTitle className="text-sm font-medium">Total Usuarios</CardTitle>
+          <Users className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{stats.totalUsers}</div>
+          <p className="text-xs text-muted-foreground">Usuarios registrados</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Con Tarjetas</CardTitle>
+          <UserCheck className="h-4 w-4 text-green-600" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-green-600">
+            {stats.usersWithCards}
+          </div>
+          <p className="text-xs text-muted-foreground">Usuarios con tarjetas</p>
+        </CardContent>
+      </Card>
+
+      {/* Card Statistics */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Total Tarjetas</CardTitle>
           <CreditCard className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{stats.totalCards}</div>
-          <p className="text-xs text-muted-foreground">All cards created</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Active Cards</CardTitle>
-          <CreditCard className="h-4 w-4 text-green-600" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-green-600">
-            {stats.activeCards}
-          </div>
-          <p className="text-xs text-muted-foreground">Available for use</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Frozen Cards</CardTitle>
-          <Snowflake className="h-4 w-4 text-blue-600" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-blue-600">
-            {stats.frozenCards}
-          </div>
-          <p className="text-xs text-muted-foreground">Temporarily locked</p>
+          <p className="text-xs text-muted-foreground">Todas las tarjetas</p>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">
-            Terminated Cards
+            Tarjetas Activas
           </CardTitle>
+          <CreditCard className="h-4 w-4 text-green-600" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-green-600">
+            {stats.activeCards}
+          </div>
+          <p className="text-xs text-muted-foreground">Disponibles para usar</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Congeladas</CardTitle>
+          <Snowflake className="h-4 w-4 text-blue-600" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-blue-600">
+            {stats.frozenCards}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Temporalmente bloqueadas
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Terminadas</CardTitle>
           <Ban className="h-4 w-4 text-red-600" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-red-600">
             {stats.terminatedCards}
           </div>
-          <p className="text-xs text-muted-foreground">Permanently closed</p>
+          <p className="text-xs text-muted-foreground">
+            Permanentemente cerradas
+          </p>
         </CardContent>
       </Card>
 
-      <Card className="md:col-span-2">
+      {/* Balance Statistics - Span full width on larger screens */}
+      <Card className="xl:col-span-3">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Balance</CardTitle>
+          <CardTitle className="text-sm font-medium">Balance Total</CardTitle>
           <DollarSign className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
@@ -119,15 +161,15 @@ export function CardStats() {
             {formatCurrency(stats.totalBalance)}
           </div>
           <p className="text-xs text-muted-foreground">
-            Across all active cards
+            En todas las tarjetas activas
           </p>
         </CardContent>
       </Card>
 
-      <Card className="md:col-span-2">
+      <Card className="xl:col-span-3">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">
-            Available Balance
+            Balance Disponible
           </CardTitle>
           <DollarSign className="h-4 w-4 text-green-600" />
         </CardHeader>
@@ -135,7 +177,7 @@ export function CardStats() {
           <div className="text-2xl font-bold text-green-600">
             {formatCurrency(stats.totalAvailableBalance)}
           </div>
-          <p className="text-xs text-muted-foreground">Ready to spend</p>
+          <p className="text-xs text-muted-foreground">Listo para gastar</p>
         </CardContent>
       </Card>
     </div>
