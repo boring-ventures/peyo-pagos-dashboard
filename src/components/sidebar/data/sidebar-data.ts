@@ -3,6 +3,7 @@ import {
   FileText,
   Users,
   Wallet,
+  CreditCard,
   BarChart3,
 } from "lucide-react";
 import type { SidebarData } from "../types";
@@ -36,6 +37,15 @@ export const getSidebarData = (userRole?: UserRole | null): SidebarData => {
       title: "Gestión de Wallets",
       url: "/wallets",
       icon: Wallet,
+    });
+  }
+
+  // Add card management if user has access
+  if (canAccessModule(userRole, "cards")) {
+    adminItems.push({
+      title: "Gestión de Tarjetas",
+      url: "/cards",
+      icon: CreditCard,
     });
   }
 

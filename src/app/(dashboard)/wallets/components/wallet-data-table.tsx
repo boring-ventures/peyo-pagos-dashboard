@@ -113,16 +113,7 @@ export function WalletDataTable({ filters, refreshKey }: WalletDataTableProps) {
     } finally {
       setLoading(false);
     }
-  }, [
-    currentPage,
-    pageSize,
-    sortConfig.field,
-    sortConfig.direction,
-    filters.chain,
-    filters.hasWallets,
-    filters.walletTag,
-    filters.search,
-  ]); // Use individual filter properties instead of the entire filters object
+  }, [currentPage, pageSize, sortConfig.field, sortConfig.direction, filters]);
 
   useEffect(() => {
     fetchData();

@@ -16,24 +16,18 @@ import { Loader } from "@/components/ui/loader";
 import {
   Activity,
   ArrowRightLeft,
-  Calendar,
   Copy,
   ExternalLink,
   MapPin,
 } from "lucide-react";
 import { useDrainHistory } from "@/hooks/use-drain-history";
-import type {
-  DrainTransaction,
-  LiquidationAddress,
-} from "@/types/wallet";
+import type { DrainTransaction, LiquidationAddress } from "@/types/wallet";
 
 interface DrainHistoryModalProps {
   liquidationAddress: LiquidationAddress | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
-
 
 const formatDateTime = (dateString: string) => {
   return new Date(dateString).toLocaleString("es-ES", {
@@ -79,7 +73,7 @@ const copyToClipboard = async (text: string, label: string) => {
       title: "Copiado",
       description: `${label} copiado al portapapeles`,
     });
-  } catch (error) {
+  } catch {
     toast({
       title: "Error",
       description: "No se pudo copiar al portapapeles",
@@ -99,7 +93,7 @@ export function DrainHistoryModal({
     if (open && liquidationAddress) {
       fetchDrainHistory(liquidationAddress);
     }
-  }, [open, liquidationAddress]);
+  }, [open, liquidationAddress, fetchDrainHistory]);
 
   const handleClose = () => {
     onOpenChange(false);
@@ -122,12 +116,14 @@ export function DrainHistoryModal({
           </div>
         )}
 
-                {error && (
+        {error && (
           <div className="text-center py-8">
             <p className="text-red-600">{error}</p>
-            <Button 
-              onClick={() => liquidationAddress && fetchDrainHistory(liquidationAddress)} 
-              variant="outline" 
+            <Button
+              onClick={() =>
+                liquidationAddress && fetchDrainHistory(liquidationAddress)
+              }
+              variant="outline"
               className="mt-4"
             >
               Reintentar

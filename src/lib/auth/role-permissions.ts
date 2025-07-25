@@ -10,6 +10,7 @@ export const ROLE_PERMISSIONS = {
     canManageUsers: false,
     canManageKYC: false,
     canManageWallets: false,
+    canManageCards: false, // Regular users cannot manage cards
     canAccessSettings: false, // Regular users also cannot access settings in the dashboard
     requiresKYC: true,
   },
@@ -19,6 +20,7 @@ export const ROLE_PERMISSIONS = {
     canManageUsers: true,
     canManageKYC: true,
     canManageWallets: true,
+    canManageCards: true, // Admin can manage cards
     canAccessSettings: true,
     requiresKYC: false,
   },
@@ -28,6 +30,7 @@ export const ROLE_PERMISSIONS = {
     canManageUsers: true,
     canManageKYC: true,
     canManageWallets: true,
+    canManageCards: true, // SuperAdmin can manage cards
     canAccessSettings: true,
     requiresKYC: false,
   },
@@ -49,7 +52,14 @@ export function hasPermission(
  */
 export function canAccessModule(
   userRole: UserRole | null | undefined,
-  module: "dashboard" | "analytics" | "users" | "kyc" | "wallets" | "settings"
+  module:
+    | "dashboard"
+    | "analytics"
+    | "users"
+    | "kyc"
+    | "wallets"
+    | "cards"
+    | "settings"
 ): boolean {
   if (!userRole) return false;
 
@@ -64,6 +74,8 @@ export function canAccessModule(
       return hasPermission(userRole, "canManageKYC");
     case "wallets":
       return hasPermission(userRole, "canManageWallets");
+    case "cards":
+      return hasPermission(userRole, "canManageCards");
     case "settings":
       return hasPermission(userRole, "canAccessSettings");
     default:
@@ -75,7 +87,14 @@ export function canAccessModule(
  * Get all roles that can access a specific module
  */
 export function getRolesForModule(
-  module: "dashboard" | "analytics" | "users" | "kyc" | "wallets" | "settings"
+  module:
+    | "dashboard"
+    | "analytics"
+    | "users"
+    | "kyc"
+    | "wallets"
+    | "cards"
+    | "settings"
 ): UserRole[] {
   const roles: UserRole[] = ["USER", "ADMIN", "SUPERADMIN"];
   return roles.filter((role) => canAccessModule(role, module));

@@ -50,7 +50,7 @@ export function WalletFilters({
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [searchInput, handleFiltersChange, filters.search]); // Only depend on the search value, not the entire filters object
+  }, [searchInput, handleFiltersChange, filters]);
 
   const handleSearchChange = (value: string) => {
     setSearchInput(value);

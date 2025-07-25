@@ -161,6 +161,7 @@ enum EventType {
   USER_KYC_APPROVED
   USER_KYC_REJECTED
   USER_WALLET_CREATED
+  USER_CARD_CREATED // Added for card tracking
 }
 
 enum EventModule {
@@ -191,6 +192,7 @@ updatedAt     DateTime             @updatedAt
   events        Event[]              // Track user events
   wallets       Wallet[]             // User's blockchain wallets
   liquidationAddresses LiquidationAddress[] // User's liquidation addresses
+  cards         Card[]               // User's PayWithMoon debit cards (USER role only)
   
   @@index([userId])
   @@index([status])
@@ -527,5 +529,44 @@ model LiquidationAddress {
   @@index([chain])
   @@index([state])
   @@map("liquidation_addresses")
+}
+
+model Card {
+  id            String      @id @default(cuid())
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  // PayWithMoon Integration (USER profiles only)
+  profileId     String      @map("profile_id")
+  moonCardId    String      @unique @map("moon_card_id") // PayWithMoon card ID
+  
+  // Card Financial Information
+  balance       Decimal     @db.Decimal(10, 2) // Current balance
+  availableBalance Decimal  @map("available_balance") @db.Decimal(10, 2) // Available balance
+  
+  // Card Details
+  expiration    DateTime    // Full expiration timestamp from PayWithMoon
+  displayExpiration String  @map("display_expiration") // Display format like "12/24"
+  cardProductId String      @map("card_product_id") // PayWithMoon card product ID
+  
+  // Sensitive Card Information (encrypted at application level)
+  pan           String      // Primary Account Number (card number) - should be encrypted
+  cvv           String      // Card Verification Value - should be encrypted
+  supportToken  String      @map("support_token") // PayWithMoon support token
+  
+  // Card Status
+  terminated    Boolean     @default(false) // If card is terminated
+  frozen        Boolean     @default(false) // If card is frozen
+  isActive      Boolean     @default(true) @map("is_active") // Our internal status flag
+  
+  // Relations
+  profile       Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  
+  @@index([profileId])
+  @@index([moonCardId])
+  @@index([terminated])
+  @@index([frozen])
+  @@index([isActive])
+  @@map("cards")
 }
 

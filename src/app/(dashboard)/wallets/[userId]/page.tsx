@@ -246,7 +246,7 @@ export default function UserWalletsPage() {
         title: "Copiado",
         description: "Dirección copiada al portapapeles",
       });
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "No se pudo copiar al portapapeles",

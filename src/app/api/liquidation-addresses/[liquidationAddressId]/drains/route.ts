@@ -55,7 +55,7 @@ async function fetchDrainHistory(
       const errorBody = await response.text();
       errorDetails = errorBody;
       console.error("❌ Bridge API Error Body:", errorBody);
-    } catch (e) {
+    } catch {
       console.error("❌ Could not read Bridge API error body");
     }
 
