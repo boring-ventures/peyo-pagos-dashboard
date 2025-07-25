@@ -56,6 +56,8 @@ export interface UserWithWallets {
   updatedAt: Date;
   wallets?: Wallet[];
   walletsCount?: number;
+  liquidationAddresses?: LiquidationAddress[];
+  liquidationAddressesCount?: number;
   kycProfile?: {
     bridgeCustomerId?: string | null;
   };
@@ -306,4 +308,72 @@ export interface WalletCreationResponse {
 export interface WalletCreationApiError {
   error: string;
   details?: string;
+}
+
+// Liquidation Address types
+
+// Bridge API Liquidation Address Response
+export interface BridgeLiquidationAddress {
+  id: string;
+  chain: string;
+  address: string;
+  currency: string;
+  customer_id: string;
+  destination_payment_rail: string;
+  destination_currency: string;
+  destination_address: string;
+  created_at: string;
+  updated_at: string;
+  state: string;
+}
+
+// Bridge API Liquidation Addresses Response
+export interface BridgeLiquidationAddressesResponse {
+  count: number;
+  data: BridgeLiquidationAddress[];
+}
+
+// Internal Liquidation Address Model (matches Prisma schema)
+export interface LiquidationAddress {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+  bridgeLiquidationId: string;
+  profileId: string;
+  customerId: string;
+  chain: string;
+  address: string;
+  currency: string;
+  destinationPaymentRail: string;
+  destinationCurrency: string;
+  destinationAddress: string;
+  state: string;
+  bridgeCreatedAt: Date;
+  bridgeUpdatedAt: Date;
+}
+
+// Liquidation Address Sync Response
+export interface LiquidationAddressSyncResponse {
+  success: boolean;
+  syncedCount: number;
+  newAddresses: number;
+  updatedAddresses: number;
+  totalAddresses: number;
+  lastSyncAt: Date;
+  message: string;
+}
+
+// User with Liquidation Addresses (for display purposes)
+export interface UserWithLiquidationAddresses {
+  id: string;
+  userId: string;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  role: string;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+  liquidationAddresses?: LiquidationAddress[];
+  liquidationAddressesCount?: number;
 }

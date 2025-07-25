@@ -16,6 +16,8 @@ import {
   Tag,
   RotateCw,
   Database,
+  MapPin,
+  ArrowRightLeft,
 } from "lucide-react";
 import {
   Card,
@@ -34,6 +36,8 @@ import type {
   Wallet as InternalWallet,
   UserWithWallets,
   WalletSyncResponse,
+  LiquidationAddress,
+  LiquidationAddressSyncResponse,
 } from "@/types/wallet";
 import { SUPPORTED_CHAINS, WALLET_TAGS } from "@/types/wallet";
 import { CreateWalletModal } from "./components/create-wallet-modal";
@@ -44,8 +48,12 @@ export default function UserWalletsPage() {
   const { profile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [syncingLiquidation, setSyncingLiquidation] = useState(false);
   const [user, setUser] = useState<UserWithWallets | null>(null);
   const [wallets, setWallets] = useState<InternalWallet[]>([]);
+  const [liquidationAddresses, setLiquidationAddresses] = useState<
+    LiquidationAddress[]
+  >([]);
 
   const userId = params.userId as string;
 
@@ -64,6 +72,7 @@ export default function UserWalletsPage() {
       const result: UserWalletApiResponse = await response.json();
       setUser(result.user);
       setWallets(result.wallets);
+      setLiquidationAddresses(result.user.liquidationAddresses || []);
     } catch (error) {
       console.error("Error fetching user wallets:", error);
       toast({
@@ -182,6 +191,56 @@ export default function UserWalletsPage() {
     setWallets((prevWallets) => [...prevWallets, newWallet]);
     // Refresh the user data to update wallet count
     fetchUserWallets();
+  };
+
+  const handleSyncLiquidationAddresses = async () => {
+    if (!user?.kycProfile?.bridgeCustomerId) {
+      toast({
+        title: "Error",
+        description:
+          "Este usuario no tiene un ID de cliente Bridge configurado",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSyncingLiquidation(true);
+    try {
+      console.log(`🔄 Syncing liquidation addresses for user ${userId}`);
+      const response = await fetch(`/api/wallets/${userId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response
+          .json()
+          .catch(() => ({ error: "Unknown error" }));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      const result: LiquidationAddressSyncResponse = await response.json();
+
+      toast({
+        title: "Sincronización exitosa",
+        description: result.message,
+      });
+
+      // Refresh the data to get updated liquidation addresses
+      await fetchUserWallets();
+    } catch (error) {
+      console.error("Error syncing liquidation addresses:", error);
+      toast({
+        title: "Error de sincronización",
+        description:
+          error instanceof Error ? error.message : "Error desconocido",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingLiquidation(false);
+    }
   };
 
   const getChainInfo = (chain: string) => {
@@ -732,6 +791,191 @@ export default function UserWalletsPage() {
                           Ver Transacciones
                         </Button>
                       )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Liquidation Addresses Section */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold">Direcciones de Liquidación</h2>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary">
+              {liquidationAddresses.length} direccion
+              {liquidationAddresses.length !== 1 ? "es" : ""}
+            </Badge>
+            {user?.kycProfile?.bridgeCustomerId &&
+              profile.role === "SUPERADMIN" && (
+                <Button
+                  onClick={handleSyncLiquidationAddresses}
+                  disabled={syncingLiquidation}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <RotateCw
+                    className={`h-4 w-4 ${syncingLiquidation ? "animate-spin" : ""}`}
+                  />
+                  {syncingLiquidation
+                    ? "Sincronizando..."
+                    : "Sincronizar desde Bridge"}
+                </Button>
+              )}
+          </div>
+        </div>
+
+        {liquidationAddresses.length === 0 ? (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center py-12">
+                <MapPin className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">
+                  No hay direcciones de liquidación
+                </h3>
+                <p className="text-muted-foreground mb-4">
+                  Este usuario aún no tiene direcciones de liquidación
+                  configuradas.
+                </p>
+                {user?.kycProfile?.bridgeCustomerId &&
+                  profile.role === "SUPERADMIN" && (
+                    <Button
+                      onClick={handleSyncLiquidationAddresses}
+                      disabled={syncingLiquidation}
+                      variant="outline"
+                      className="flex items-center gap-2"
+                    >
+                      <RotateCw
+                        className={`h-4 w-4 ${syncingLiquidation ? "animate-spin" : ""}`}
+                      />
+                      {syncingLiquidation
+                        ? "Sincronizando..."
+                        : "Sincronizar desde Bridge"}
+                    </Button>
+                  )}
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2">
+            {liquidationAddresses.map((address) => {
+              const sourceChainInfo = getChainInfo(address.chain);
+              const destinationChainInfo = getChainInfo(
+                address.destinationPaymentRail
+              );
+              return (
+                <Card
+                  key={address.id}
+                  className="hover:shadow-md transition-shadow"
+                >
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-6 h-6 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: sourceChainInfo.color }}
+                        />
+                        <div className="flex-1">
+                          <CardTitle className="text-lg">
+                            {sourceChainInfo.displayName} →{" "}
+                            {destinationChainInfo.displayName}
+                          </CardTitle>
+                          <div className="flex items-center gap-2">
+                            <CardDescription>
+                              {address.currency.toUpperCase()} →{" "}
+                              {address.destinationCurrency.toUpperCase()}
+                            </CardDescription>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Badge
+                          variant={
+                            address.state === "active" ? "default" : "secondary"
+                          }
+                          className="text-xs"
+                        >
+                          {address.state === "active"
+                            ? "Activo"
+                            : address.state}
+                        </Badge>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">
+                        Dirección de Origen ({sourceChainInfo.displayName})
+                      </label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <code className="flex-1 text-sm bg-muted px-3 py-2 rounded font-mono break-all">
+                          {address.address}
+                        </code>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleCopyAddress(address.address)}
+                          className="flex-shrink-0"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">
+                        Dirección de Destino ({destinationChainInfo.displayName}
+                        )
+                      </label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <code className="flex-1 text-sm bg-blue-50 px-3 py-2 rounded font-mono break-all border border-blue-200">
+                          {address.destinationAddress}
+                        </code>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            handleCopyAddress(address.destinationAddress)
+                          }
+                          className="flex-shrink-0"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <label className="text-muted-foreground">
+                          Creada en Bridge
+                        </label>
+                        <div className="flex items-center gap-1 mt-1">
+                          <Calendar className="h-3 w-3" />
+                          <span>{formatDateTime(address.bridgeCreatedAt)}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-muted-foreground">
+                          Última actualización
+                        </label>
+                        <div className="flex items-center gap-1 mt-1">
+                          <Activity className="h-3 w-3" />
+                          <span>{formatDateTime(address.bridgeUpdatedAt)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-center pt-2">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <ArrowRightLeft className="h-4 w-4" />
+                        <span>Liquidación automática habilitada</span>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

@@ -190,6 +190,7 @@ updatedAt     DateTime             @updatedAt
   kycProfile    KYCProfile?          // Only for USER role - Bridge Protocol integration
   events        Event[]              // Track user events
   wallets       Wallet[]             // User's blockchain wallets
+  liquidationAddresses LiquidationAddress[] // User's liquidation addresses
   
   @@index([userId])
   @@index([status])
@@ -418,6 +419,7 @@ model Wallet {
   // Relations
   profile       Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
   transactions  Transaction[] // One-to-many relationship with transactions
+  liquidationAddresses LiquidationAddress[] // One-to-many relationship with liquidation addresses
   
   @@index([profileId])
   @@index([bridgeWalletId])
@@ -485,5 +487,45 @@ model TransactionSync {
   @@index([walletId])
   @@index([lastSyncAt])
   @@map("transaction_syncs")
+}
+
+model LiquidationAddress {
+  id            String      @id @default(cuid())
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  // Bridge API Liquidation Address Data
+  bridgeLiquidationId String @unique @map("bridge_liquidation_id") // Bridge API liquidation address ID
+  profileId     String      @map("profile_id") // Reference to Profile
+  walletId      String?      @map("wallet_id") // Reference to Wallet
+  customerId    String      @map("customer_id") // Bridge customer ID
+  
+  // Liquidation Address Details
+  chain         String      // Source chain (e.g., "polygon")
+  address       String      // Source address for liquidation
+  currency      String      // Source currency (e.g., "usdc")
+  
+  // Destination Information
+  destinationPaymentRail String @map("destination_payment_rail") // Destination chain (e.g., "solana")
+  destinationCurrency String    @map("destination_currency") // Destination currency (e.g., "usdc")
+  destinationAddress String     @map("destination_address") // Destination wallet address
+  
+  // Bridge Protocol Status
+  state         String      @default("active") // active, inactive, etc.
+  
+  // Bridge Protocol Timestamps
+  bridgeCreatedAt DateTime  @map("bridge_created_at")
+  bridgeUpdatedAt DateTime  @map("bridge_updated_at")
+  
+  // Relations
+  profile       Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  wallet        Wallet?     @relation(fields: [walletId], references: [id])
+
+  @@index([profileId])
+  @@index([customerId])
+  @@index([bridgeLiquidationId])
+  @@index([chain])
+  @@index([state])
+  @@map("liquidation_addresses")
 }
 
