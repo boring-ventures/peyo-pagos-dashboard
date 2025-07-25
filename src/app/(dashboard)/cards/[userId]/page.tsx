@@ -18,7 +18,6 @@ import {
   Ban,
   CheckCircle,
   PowerOff,
-  Plus,
   Eye,
   Settings,
 } from "lucide-react";
@@ -42,7 +41,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useUserCards, useCreateCard } from "@/hooks/use-cards";
+import { useUserCards } from "@/hooks/use-cards";
 import type { CardSummary } from "@/types/card";
 
 interface UserInfo {
@@ -59,7 +58,6 @@ export default function UserCardsPage() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const userId = params.userId as string;
-  const createCard = useCreateCard();
 
   const { data, isLoading, error, refetch } = useUserCards(userId, {
     limit: 50,
@@ -71,15 +69,6 @@ export default function UserCardsPage() {
     setRefreshTrigger((prev) => prev + 1);
     refetch();
   }, [refetch]);
-
-  const handleCreateCard = async () => {
-    try {
-      await createCard.mutateAsync({ userId, amount: 100 });
-      handleRefresh();
-    } catch {
-      // Error handling is done in the hook
-    }
-  };
 
   const handleCopyUserId = (userId: string) => {
     navigator.clipboard.writeText(userId);
@@ -464,19 +453,9 @@ export default function UserCardsPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold">Tarjetas PayWithMoon</h2>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary">
-              {cards.length} tarjeta{cards.length !== 1 ? "s" : ""}
-            </Badge>
-            <Button
-              onClick={handleCreateCard}
-              disabled={createCard.isPending}
-              className="flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              {createCard.isPending ? "Creando..." : "Crear Tarjeta"}
-            </Button>
-          </div>
+          <Badge variant="secondary">
+            {cards.length} tarjeta{cards.length !== 1 ? "s" : ""}
+          </Badge>
         </div>
 
         {cards.length === 0 ? (
@@ -488,16 +467,10 @@ export default function UserCardsPage() {
                 <p className="text-muted-foreground mb-4">
                   Este usuario aún no tiene tarjetas PayWithMoon configuradas.
                 </p>
-                <Button
-                  onClick={handleCreateCard}
-                  disabled={createCard.isPending}
-                  className="flex items-center gap-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  {createCard.isPending
-                    ? "Creando..."
-                    : "Crear Primera Tarjeta"}
-                </Button>
+                <p className="text-muted-foreground text-sm">
+                  Las tarjetas pueden ser creadas desde la página principal de
+                  tarjetas.
+                </p>
               </div>
             </CardContent>
           </Card>
