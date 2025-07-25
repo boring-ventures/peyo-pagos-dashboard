@@ -377,3 +377,44 @@ export interface UserWithLiquidationAddresses {
   liquidationAddresses?: LiquidationAddress[];
   liquidationAddressesCount?: number;
 }
+
+// Drain History Types (Bridge API response)
+export interface DrainDestination {
+  payment_rail: string;
+  currency: string;
+  to_address: string;
+}
+
+export interface DrainReceipt {
+  initial_amount: string;
+  developer_fee: string;
+  subtotal_amount: string;
+  exchange_rate: string;
+  converted_amount: string;
+  destination_currency: string;
+  outgoing_amount: string;
+  url: string;
+}
+
+export interface DrainTransaction {
+  id: string;
+  customer_id: string;
+  liquidation_address_id: string;
+  amount: string;
+  currency: string;
+  state: string;
+  created_at: string;
+  updated_at: string;
+  destination: DrainDestination;
+  source_payment_rail: string;
+  destination_tx_hash: string | null;
+  deposit_tx_hash: string | null;
+  deposit_tx_timestamp: string | null;
+  from_address: string | null;
+  receipt: DrainReceipt;
+}
+
+export interface DrainHistoryResponse {
+  count: number;
+  data: DrainTransaction[];
+}
