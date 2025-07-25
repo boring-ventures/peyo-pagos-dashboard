@@ -39,7 +39,11 @@ export async function GET(
       where: { userId: session.user.id },
     });
 
-    if (!currentUserProfile || currentUserProfile.role !== "SUPERADMIN") {
+    if (
+      !currentUserProfile ||
+      (currentUserProfile.role !== "ADMIN" &&
+        currentUserProfile.role !== "SUPERADMIN")
+    ) {
       console.log(
         "❌ User Wallets API - Authorization failed. User role:",
         currentUserProfile?.role
@@ -91,7 +95,7 @@ export async function GET(
       updatedAt: userProfile.updatedAt,
       wallets: userProfile.wallets as Wallet[],
       walletsCount: userProfile.wallets.length,
-      kycProfile: userProfile.kycProfile,
+      kycProfile: userProfile.kycProfile || undefined,
     };
 
     const response: UserWalletApiResponse = {

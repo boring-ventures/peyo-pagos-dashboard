@@ -48,8 +48,8 @@ export default function KYCPage() {
     return <KYCLoader />;
   }
 
-  // Check if user is admin
-  if (!profile || profile.role !== "SUPERADMIN") {
+  // Check if user has KYC access
+  if (!profile || (profile.role !== "ADMIN" && profile.role !== "SUPERADMIN")) {
     return (
       <div className="container mx-auto py-10">
         <Card className="max-w-md mx-auto">

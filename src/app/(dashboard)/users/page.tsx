@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { canAccessModule } from "@/lib/auth/role-permissions";
 
 export default function UsersPage() {
   const { profile } = useAuth();
@@ -55,8 +56,8 @@ export default function UsersPage() {
     return <UserLoader />;
   }
 
-  // Check if user is admin
-  if (!profile || profile.role !== "SUPERADMIN") {
+  // Check if user has access to user management (ADMIN and SUPERADMIN)
+  if (!profile || !canAccessModule(profile.role, "users")) {
     return (
       <div className="container mx-auto py-10">
         <Card className="max-w-md mx-auto">
@@ -117,12 +118,16 @@ export default function UsersPage() {
 
       {/* Main Content */}
       <Tabs defaultValue="all" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="all" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Todos los Usuarios
           </TabsTrigger>
           <TabsTrigger value="admins" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            Administradores
+          </TabsTrigger>
+          <TabsTrigger value="superadmins" className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
             Super Administradores
           </TabsTrigger>
@@ -165,9 +170,31 @@ export default function UsersPage() {
         <TabsContent value="admins" className="space-y-6">
           <Card>
             <CardHeader>
+              <CardTitle>Administradores</CardTitle>
+              <CardDescription>
+                Usuarios con permisos administrativos (sin acceso a analytics)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <UserDataTable
+                filters={{
+                  ...filters,
+                  role: "ADMIN",
+                }}
+                refreshKey={refreshKey}
+                showOnlyRole="ADMIN"
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="superadmins" className="space-y-6">
+          <Card>
+            <CardHeader>
               <CardTitle>Super Administradores</CardTitle>
               <CardDescription>
-                Usuarios con permisos administrativos completos
+                Usuarios con permisos administrativos completos incluyendo
+                analytics
               </CardDescription>
             </CardHeader>
             <CardContent>

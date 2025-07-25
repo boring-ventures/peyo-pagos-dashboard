@@ -45,6 +45,7 @@ enum WalletTag {
 
 enum UserRole {
   USER
+  ADMIN
   SUPERADMIN
 }
 
@@ -159,12 +160,14 @@ enum EventType {
   USER_KYC_UNDER_VERIFICATION
   USER_KYC_APPROVED
   USER_KYC_REJECTED
+  USER_WALLET_CREATED
 }
 
 enum EventModule {
   AUTH
   KYC
   PROFILE
+  WALLET
 }
 
 model Profile {
@@ -414,10 +417,73 @@ model Wallet {
   
   // Relations
   profile       Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  transactions  Transaction[] // One-to-many relationship with transactions
   
   @@index([profileId])
   @@index([bridgeWalletId])
   @@index([address])
   @@map("wallets")
+}
+
+model Transaction {
+  id            String      @id @default(cuid())
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  // Bridge API Transaction Data
+  bridgeTransactionId String @unique @map("bridge_transaction_id") // Unique identifier from Bridge API
+  walletId      String      @map("wallet_id")
+  
+  // Transaction Details
+  amount        String      // Amount as string (from Bridge API)
+  developerFee  String?     @map("developer_fee") // Fee as string (from Bridge API)
+  customerId    String      @map("customer_id") // Bridge customer ID
+  
+  // Source Information
+  sourcePaymentRail String?  @map("source_payment_rail") // e.g., "solana", "base", etc.
+  sourceCurrency String?     @map("source_currency") // e.g., "usdc", "usdt", etc.
+  
+  // Destination Information  
+  destinationPaymentRail String? @map("destination_payment_rail") // e.g., "solana", "base", etc.
+  destinationCurrency String?   @map("destination_currency") // e.g., "usdc", "usdt", etc.
+  
+  // Timestamps from Bridge API
+  bridgeCreatedAt DateTime  @map("bridge_created_at")
+  bridgeUpdatedAt DateTime  @map("bridge_updated_at")
+  
+  // Raw Bridge API Response (for debugging/future use)
+  bridgeRawData Json?       @map("bridge_raw_data")
+  
+  // Relations
+  wallet        Wallet      @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  
+  @@index([walletId])
+  @@index([bridgeTransactionId])
+  @@index([customerId])
+  @@index([bridgeCreatedAt])
+  @@map("transactions")
+}
+
+model TransactionSync {
+  id            String      @id @default(cuid())
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  // Sync Tracking
+  walletId      String      @map("wallet_id")
+  lastSyncAt    DateTime    @map("last_sync_at")
+  lastSyncTransactionCount Int @default(0) @map("last_sync_transaction_count")
+  newTransactionsFound Int  @default(0) @map("new_transactions_found")
+  
+  // Sync Status
+  syncStatus    String      @default("success") @map("sync_status") // success, error, partial
+  errorMessage  String?     @map("error_message")
+  
+  // Bridge API Pagination Info
+  lastProcessedBridgeCreatedAt DateTime? @map("last_processed_bridge_created_at")
+  
+  @@index([walletId])
+  @@index([lastSyncAt])
+  @@map("transaction_syncs")
 }
 

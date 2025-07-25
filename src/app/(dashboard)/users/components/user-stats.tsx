@@ -2,12 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Users, Shield, UserCheck, UserX, TrendingUp } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { UserStats } from "@/types/user";
 
@@ -61,11 +56,6 @@ export function UserStats({ refreshKey }: UserStatsProps) {
 
   if (!stats) return null;
 
-  const adminPercentage =
-    stats.totalUsers > 0
-      ? ((stats.totalSuperAdmins / stats.totalUsers) * 100).toFixed(1)
-      : 0;
-
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 px-2">
       {/* Total Users */}
@@ -84,20 +74,18 @@ export function UserStats({ refreshKey }: UserStatsProps) {
         </CardContent>
       </Card>
 
-      {/* Super Admins */}
+      {/* Administrators */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">
-            Super Administradores
-          </CardTitle>
+          <CardTitle className="text-sm font-medium">Administradores</CardTitle>
           <Shield className="h-4 w-4 text-blue-600" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-blue-600">
-            {stats.totalSuperAdmins}
+            {stats.totalSuperAdmins + stats.totalAdmins}
           </div>
           <p className="text-xs text-muted-foreground">
-            {adminPercentage}% del total
+            {stats.totalSuperAdmins} Super, {stats.totalAdmins} Admin
           </p>
         </CardContent>
       </Card>

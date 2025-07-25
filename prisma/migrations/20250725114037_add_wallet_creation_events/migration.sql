@@ -1,0 +1,5 @@
+-- AlterEnum
+ALTER TYPE "EventModule" ADD VALUE 'WALLET';
+
+-- AlterEnum
+ALTER TYPE "EventType" ADD VALUE 'USER_WALLET_CREATED';

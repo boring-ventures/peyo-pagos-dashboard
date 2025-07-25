@@ -34,7 +34,7 @@ import { Loader2, UserPlus } from "lucide-react";
 import { USER_ROLE_LABELS } from "@/types/user";
 import { PasswordInput } from "@/components/utils/password-input";
 import { PasswordStrengthIndicator } from "@/components/utils/password-strength-indicator";
-import { hashPassword } from "@/lib/auth/password-crypto";
+import { saltAndHashPassword } from "@/lib/auth/password-crypto";
 
 const createUserSchema = z.object({
   email: z
@@ -49,7 +49,7 @@ const createUserSchema = z.object({
     .string()
     .min(2, "El apellido debe tener al menos 2 caracteres")
     .max(50, "El apellido no puede exceder 50 caracteres"),
-  role: z.enum(["USER", "SUPERADMIN"], {
+  role: z.enum(["USER", "ADMIN", "SUPERADMIN"], {
     required_error: "Debe seleccionar un rol",
   }),
   password: z
@@ -91,8 +91,11 @@ export function CreateUserModal({
   const onSubmit = async (values: CreateUserFormValues) => {
     setIsSubmitting(true);
     try {
-      // Hash the password before sending to server (same as reset password flow)
-      const hashedPassword = await hashPassword(values.password);
+      // Hash the password with email as salt (same as sign-in flow)
+      const hashedPassword = await saltAndHashPassword(
+        values.password,
+        values.email
+      );
 
       const response = await fetch("/api/users", {
         method: "POST",
@@ -260,7 +263,12 @@ export function CreateUserModal({
                           {label}
                           {key === "SUPERADMIN" && (
                             <span className="text-xs text-muted-foreground ml-1">
-                              (Sin KYC)
+                              (Sin KYC, Analytics)
+                            </span>
+                          )}
+                          {key === "ADMIN" && (
+                            <span className="text-xs text-muted-foreground ml-1">
+                              (Sin KYC, Sin Analytics)
                             </span>
                           )}
                           {key === "USER" && (

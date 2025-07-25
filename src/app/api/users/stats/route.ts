@@ -23,7 +23,11 @@ export async function GET() {
       where: { userId: session.user.id },
     });
 
-    if (!currentUserProfile || currentUserProfile.role !== "SUPERADMIN") {
+    if (
+      !currentUserProfile ||
+      (currentUserProfile.role !== "SUPERADMIN" &&
+        currentUserProfile.role !== "ADMIN")
+    ) {
       return NextResponse.json(
         { error: "Unauthorized - Admin access required" },
         { status: 403 }
@@ -37,10 +41,13 @@ export async function GET() {
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     // Get total counts
-    const [totalUsers, totalSuperAdmins] = await Promise.all([
+    const [totalUsers, totalSuperAdmins, totalAdmins] = await Promise.all([
       prisma.profile.count(),
       prisma.profile.count({
         where: { role: "SUPERADMIN" },
+      }),
+      prisma.profile.count({
+        where: { role: "ADMIN" },
       }),
     ]);
 
@@ -86,6 +93,7 @@ export async function GET() {
     const stats: UserStats = {
       totalUsers,
       totalSuperAdmins,
+      totalAdmins,
       userStatusCounts: processedStatusCounts,
       recentActivity: {
         newUsersToday,

@@ -1,3 +1,5 @@
+import type { JsonValue } from "@prisma/client/runtime/library";
+
 // Wallet types based on Bridge API response format
 
 // Bridge API Wallet Response
@@ -45,6 +47,9 @@ export interface UserWithWallets {
   updatedAt: Date;
   wallets?: Wallet[];
   walletsCount?: number;
+  kycProfile?: {
+    bridgeCustomerId?: string | null;
+  };
 }
 
 // Wallet Sync Request
@@ -149,6 +154,146 @@ export interface UserWalletApiResponse {
 
 // API Error Response
 export interface WalletApiError {
+  error: string;
+  details?: string;
+}
+
+// Transaction types based on Bridge API response format
+
+// Bridge API Transaction Response
+export interface BridgeTransaction {
+  amount: string;
+  developer_fee: string;
+  created_at: string;
+  updated_at: string;
+  customer_id: string;
+  source: {
+    payment_rail: string;
+    currency: string;
+  };
+  destination: {
+    payment_rail: string;
+    currency: string;
+  };
+}
+
+// Bridge API Transaction History Response
+export interface BridgeTransactionHistoryResponse {
+  count: number;
+  data: BridgeTransaction[];
+}
+
+// Internal Transaction Model (matches Prisma schema)
+export interface Transaction {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+  bridgeTransactionId: string;
+  walletId: string;
+  amount: string;
+  developerFee: string | null;
+  customerId: string;
+  sourcePaymentRail: string | null;
+  sourceCurrency: string | null;
+  destinationPaymentRail: string | null;
+  destinationCurrency: string | null;
+  bridgeCreatedAt: Date;
+  bridgeUpdatedAt: Date;
+  bridgeRawData: JsonValue | null;
+}
+
+// Transaction Sync Model
+export interface TransactionSync {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+  walletId: string;
+  lastSyncAt: Date;
+  lastSyncTransactionCount: number;
+  newTransactionsFound: number;
+  syncStatus: string;
+  errorMessage: string | null;
+  lastProcessedBridgeCreatedAt: Date | null;
+}
+
+// Transaction Sync Response
+export interface TransactionSyncResponse {
+  success: boolean;
+  syncedCount: number;
+  newTransactions: number;
+  totalTransactions: number;
+  lastSyncAt: Date;
+  message: string;
+}
+
+// Wallet with Transactions (for display purposes)
+export interface WalletWithTransactions extends Wallet {
+  transactions?: Transaction[];
+  transactionCount?: number;
+  lastTransactionAt?: Date | null;
+  profile?: {
+    userId: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string | null;
+  };
+}
+
+// Transaction Filters
+export interface TransactionFilters {
+  dateFrom?: string;
+  dateTo?: string;
+  minAmount?: string;
+  maxAmount?: string;
+  currency?: string;
+  paymentRail?: string;
+}
+
+// Transaction API Response Types
+export interface TransactionHistoryApiResponse {
+  transactions: Transaction[];
+  pagination: PaginationMeta;
+  syncInfo?: TransactionSync;
+}
+
+export interface WalletTransactionApiResponse {
+  wallet: WalletWithTransactions;
+  transactions: Transaction[];
+  pagination: PaginationMeta;
+  syncInfo?: TransactionSync;
+}
+
+// Transaction Stats
+export interface TransactionStats {
+  totalTransactions: number;
+  totalAmount: string;
+  averageAmount: string;
+  transactionsByPaymentRail: {
+    [rail: string]: number;
+  };
+  transactionsByCurrency: {
+    [currency: string]: number;
+  };
+  recentActivity: {
+    transactionsToday: number;
+    transactionsThisWeek: number;
+    transactionsThisMonth: number;
+  };
+}
+
+// Wallet Creation types
+export interface WalletCreationRequest {
+  chain: "base" | "solana";
+  walletTag: "general_use" | "p2p";
+}
+
+export interface WalletCreationResponse {
+  success: boolean;
+  wallet: Wallet;
+  message: string;
+}
+
+export interface WalletCreationApiError {
   error: string;
   details?: string;
 }

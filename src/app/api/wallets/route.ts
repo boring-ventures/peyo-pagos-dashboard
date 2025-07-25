@@ -8,7 +8,6 @@ import type {
   UserWithWallets,
   BridgeWalletResponse,
   Wallet,
-  WalletSyncResponse,
 } from "@/types/wallet";
 
 const bridgeApiKey = process.env.BRIDGE_API_KEY;
@@ -88,7 +87,11 @@ function determineWalletTag(bridgeTags: string[]): "general_use" | "p2p" {
 }
 
 // Helper function to sync wallets from Bridge API for a user
-async function syncWalletsForUser(profile: any): Promise<Wallet[]> {
+async function syncWalletsForUser(profile: {
+  id: string;
+  firstName: string | null;
+  kycProfile?: { bridgeCustomerId?: string | null } | null;
+}): Promise<Wallet[]> {
   const kycProfile = profile.kycProfile;
   if (!kycProfile?.bridgeCustomerId || !bridgeApiKey) {
     return [];
@@ -182,11 +185,10 @@ export async function GET(req: NextRequest) {
     const supabase = createRouteHandlerClient({ cookies });
     const {
       data: { session },
-      error: sessionError,
     } = await supabase.auth.getSession();
 
-    if (sessionError || !session) {
-      console.log("❌ Wallets API - Authentication failed:", sessionError);
+    if (!session) {
+      console.log("❌ Wallets API - Authentication failed");
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
@@ -199,7 +201,11 @@ export async function GET(req: NextRequest) {
 
     console.log("👤 Wallets API - Current user profile:", currentUserProfile);
 
-    if (!currentUserProfile || currentUserProfile.role !== "SUPERADMIN") {
+    if (
+      !currentUserProfile ||
+      (currentUserProfile.role !== "ADMIN" &&
+        currentUserProfile.role !== "SUPERADMIN")
+    ) {
       console.log(
         "❌ Wallets API - Authorization failed. User role:",
         currentUserProfile?.role
@@ -334,15 +340,18 @@ export async function GET(req: NextRequest) {
     // Auto-sync wallets from Bridge API for users that have no wallets but have Bridge customer ID
     if (includeWallets && bridgeApiKey) {
       console.log("🔄 Checking for users needing wallet sync...");
-      
-      const usersNeedingSync = profiles.filter(profile => 
-        (!profile.wallets || profile.wallets.length === 0) && 
-        profile.kycProfile?.bridgeCustomerId
+
+      const usersNeedingSync = profiles.filter(
+        (profile) =>
+          (!profile.wallets || profile.wallets.length === 0) &&
+          profile.kycProfile?.bridgeCustomerId
       );
 
       if (usersNeedingSync.length > 0) {
-        console.log(`🔄 Auto-syncing wallets for ${usersNeedingSync.length} users...`);
-        
+        console.log(
+          `🔄 Auto-syncing wallets for ${usersNeedingSync.length} users...`
+        );
+
         // Sync wallets for each user that needs it
         for (const profile of usersNeedingSync) {
           await syncWalletsForUser(profile);
@@ -359,7 +368,7 @@ export async function GET(req: NextRequest) {
             take: limit,
           }),
         ]);
-        
+
         // Update the profiles array with newly synced data
         profiles.splice(0, profiles.length, ...updatedProfiles);
         console.log("✅ Profiles updated with synced wallet data");

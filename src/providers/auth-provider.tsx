@@ -5,6 +5,7 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import type { User, Session } from "@supabase/auth-helpers-nextjs";
 import { useRouter } from "next/navigation";
 import type { Profile } from "@/types/profile";
+import { canAccessModule } from "@/lib/auth/role-permissions";
 
 interface AuthContextType {
   user: User | null;
@@ -13,6 +14,9 @@ interface AuthContextType {
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  hasAccess: (
+    module: "dashboard" | "analytics" | "users" | "kyc" | "wallets" | "settings"
+  ) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -22,6 +26,7 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
   signIn: async () => {},
   signOut: async () => {},
+  hasAccess: () => false,
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -43,6 +48,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Error fetching profile:", error);
       setProfile(null);
     }
+  };
+
+  // Check if user has access to a specific module
+  const hasAccess = (
+    module: "dashboard" | "analytics" | "users" | "kyc" | "wallets" | "settings"
+  ) => {
+    return canAccessModule(profile?.role, module);
   };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
@@ -86,9 +98,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password,
     });
     if (error) throw error;
+
     if (data.user) {
+      // Fetch and validate user profile
       await fetchProfile(data.user.id);
+
+      // Wait a moment for profile state to update
+      // This helps prevent race conditions
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Get the profile from the API response directly
+      const profileResponse = await fetch(`/api/profile/${data.user.id}`);
+      if (!profileResponse.ok) {
+        throw new Error("User profile not found. Please contact support.");
+      }
+
+      const { profile: userProfile } = await profileResponse.json();
+
+      // Check if profile exists and has valid role
+      if (!userProfile) {
+        throw new Error("User profile not found. Please contact support.");
+      }
+
+      // Validate that user has access to dashboard
+      if (!canAccessModule(userProfile.role, "dashboard")) {
+        // Sign out the user since they don't have access
+        await supabase.auth.signOut();
+        throw new Error(
+          "You don't have permission to access the dashboard. Only administrators can access this platform."
+        );
+      }
     }
+
     router.push("/dashboard");
   };
 
@@ -101,7 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, session, profile, isLoading, signIn, signOut }}
+      value={{ user, session, profile, isLoading, signIn, signOut, hasAccess }}
     >
       {children}
     </AuthContext.Provider>

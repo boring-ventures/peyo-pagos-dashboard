@@ -8,10 +8,14 @@ import {
 import { NavGroup } from "./nav-group";
 import { NavUser } from "./nav-user";
 import { TeamSwitcher } from "./team-switcher";
-import { sidebarData } from "./data/sidebar-data";
+import { getSidebarData } from "./data/sidebar-data";
 import type { NavGroupProps } from "./types";
+import { useAuth } from "@/providers/auth-provider";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { profile } = useAuth();
+  const sidebarData = getSidebarData(profile?.role);
+
   return (
     <Sidebar collapsible="icon" variant="floating" {...props}>
       <SidebarHeader>

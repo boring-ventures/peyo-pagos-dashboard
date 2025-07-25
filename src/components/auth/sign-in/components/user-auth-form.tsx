@@ -52,10 +52,24 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
         description: "You have been signed in.",
       });
       router.push("/dashboard");
-    } catch {
+    } catch (error) {
+      console.error("Sign-in error:", error);
+      
+      let errorMessage = "Invalid email or password.";
+      
+      if (error instanceof Error) {
+        if (error.message.includes("profile not found")) {
+          errorMessage = "User profile not found. Please contact support.";
+        } else if (error.message.includes("don't have permission") || error.message.includes("Only administrators")) {
+          errorMessage = "Access denied. Only administrators can access this platform.";
+        } else if (error.message.includes("Invalid login credentials")) {
+          errorMessage = "Invalid email or password.";
+        }
+      }
+      
       toast({
         title: "Error",
-        description: "Invalid email or password.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

@@ -20,6 +20,7 @@ export interface UserTableRow {
 export interface UserStats {
   totalUsers: number;
   totalSuperAdmins: number;
+  totalAdmins: number;
   userStatusCounts: {
     active: number;
     disabled: number;
@@ -67,7 +68,8 @@ export interface UserStatusUpdate {
 // User Role labels (for UI)
 export const USER_ROLE_LABELS: Record<UserRole, string> = {
   USER: "Usuario",
-  SUPERADMIN: "Administrador",
+  ADMIN: "Administrador",
+  SUPERADMIN: "Super Administrador",
 };
 
 // User Status labels (for UI)

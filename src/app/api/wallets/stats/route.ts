@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import prisma from "@/lib/prisma";
 import type { WalletStatsApiResponse } from "@/types/wallet";
 
 // GET: Fetch wallet statistics (admin only)
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     console.log("📊 Wallet Stats API - Starting request");
 
@@ -13,11 +13,10 @@ export async function GET(req: NextRequest) {
     const supabase = createRouteHandlerClient({ cookies });
     const {
       data: { session },
-      error: sessionError,
     } = await supabase.auth.getSession();
 
-    if (sessionError || !session) {
-      console.log("❌ Wallet Stats API - Authentication failed:", sessionError);
+    if (!session) {
+      console.log("❌ Wallet Stats API - Authentication failed");
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
@@ -50,7 +49,6 @@ export async function GET(req: NextRequest) {
       walletsByChain,
       walletsByTag,
       newWalletsToday,
-      usersWithMultipleWallets,
     ] = await Promise.all([
       // Total active wallets
       prisma.wallet.count({
@@ -87,16 +85,6 @@ export async function GET(req: NextRequest) {
           isActive: true,
           createdAt: {
             gte: today,
-          },
-        },
-      }),
-
-      // Users with multiple wallets
-      prisma.profile.count({
-        where: {
-          role: "USER",
-          wallets: {
-            some: { isActive: true },
           },
         },
       }),

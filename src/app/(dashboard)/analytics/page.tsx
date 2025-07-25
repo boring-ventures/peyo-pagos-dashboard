@@ -1,6 +1,5 @@
 "use client";
 
-
 import { useAuth } from "@/providers/auth-provider";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { AnalyticsStats } from "./components/analytics-stats";
@@ -15,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RefreshCw, BarChart3, Shield, AlertTriangle } from "lucide-react";
+import { canAccessModule } from "@/lib/auth/role-permissions";
 
 export default function AnalyticsPage() {
   const { profile } = useAuth();
@@ -24,8 +24,8 @@ export default function AnalyticsPage() {
     await refetch();
   };
 
-  // Check if user is admin
-  if (!profile || profile.role !== "SUPERADMIN") {
+  // Check if user has access to analytics (only SUPERADMIN)
+  if (!profile || !canAccessModule(profile.role, 'analytics')) {
     return (
       <div className="container mx-auto py-10">
         <Card className="max-w-md mx-auto">
@@ -34,7 +34,7 @@ export default function AnalyticsPage() {
             <CardTitle className="text-xl">Access Denied</CardTitle>
             <CardDescription>
               You don&apos;t have permission to access this module. Only
-              administrators can view platform analytics.
+              super administrators can view platform analytics.
             </CardDescription>
           </CardHeader>
         </Card>

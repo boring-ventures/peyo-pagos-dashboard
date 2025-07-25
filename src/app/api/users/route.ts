@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import prisma from "@/lib/prisma";
 import type { UserRole, UserStatus, Prisma } from "@prisma/client";
 
+
 // GET: Fetch all users for user management (admin only)
 export async function GET(req: NextRequest) {
   try {
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
 
     console.log("👤 Users API - Current user profile:", currentUserProfile);
 
-    if (!currentUserProfile || currentUserProfile.role !== "SUPERADMIN") {
+    if (!currentUserProfile || (currentUserProfile.role !== "SUPERADMIN" && currentUserProfile.role !== "ADMIN")) {
       console.log(
         "❌ Users API - Authorization failed. User role:",
         currentUserProfile?.role
@@ -237,7 +238,7 @@ export async function POST(req: NextRequest) {
       where: { userId: session.user.id },
     });
 
-    if (!currentUserProfile || currentUserProfile.role !== "SUPERADMIN") {
+    if (!currentUserProfile || (currentUserProfile.role !== "SUPERADMIN" && currentUserProfile.role !== "ADMIN")) {
       return NextResponse.json(
         { error: "Unauthorized - Admin access required" },
         { status: 403 }
@@ -268,11 +269,15 @@ export async function POST(req: NextRequest) {
     // Create Supabase admin client
     const supabaseAdmin = createClient(supabaseUrl!, supabaseServiceKey);
 
+    // Password is already hashed client-side with saltAndHashPassword(password, email)
+    // No additional hashing needed - use the pre-hashed password directly
+    const finalHashedPassword = password;
+
     // Create auth user in Supabase
     const { data: authUser, error: authError } =
       await supabaseAdmin.auth.admin.createUser({
         email,
-        password,
+        password: finalHashedPassword,
         email_confirm: true, // Auto-confirm email for admin-created users
         user_metadata: {
           first_name: firstName,

@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { redirect } from "next/navigation";
 import { DashboardLayoutClient } from "@/components/dashboard/dashboard-layout-client";
+import { DashboardGuard } from "@/components/dashboard/dashboard-guard";
 
 export default async function DashboardLayout({
   children,
@@ -17,5 +18,9 @@ export default async function DashboardLayout({
     redirect("/sign-in");
   }
 
-  return <DashboardLayoutClient>{children}</DashboardLayoutClient>;
+  return (
+    <DashboardGuard>
+      <DashboardLayoutClient>{children}</DashboardLayoutClient>
+    </DashboardGuard>
+  );
 }

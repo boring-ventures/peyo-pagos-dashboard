@@ -154,7 +154,8 @@ export const KYC_STATUS_LABELS: Record<KYCStatus, string> = {
 // User Role labels
 export const USER_ROLE_LABELS: Record<UserRole, string> = {
   USER: "Usuario",
-  SUPERADMIN: "Administrador",
+  ADMIN: "Administrador",
+  SUPERADMIN: "Super Administrador",
 };
 
 // User Status labels

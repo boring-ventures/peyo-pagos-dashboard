@@ -36,6 +36,7 @@ import type {
   WalletSyncResponse,
 } from "@/types/wallet";
 import { SUPPORTED_CHAINS, WALLET_TAGS } from "@/types/wallet";
+import { CreateWalletModal } from "./components/create-wallet-modal";
 
 export default function UserWalletsPage() {
   const params = useParams();
@@ -152,6 +153,29 @@ export default function UserWalletsPage() {
     });
   };
 
+  const handleCopyWalletId = (walletId: string) => {
+    navigator.clipboard.writeText(walletId);
+    toast({
+      title: "Copiado",
+      description: "Peyo ID de wallet copiado al portapapeles",
+    });
+  };
+
+  const handleCopyBridgeId = (bridgeId: string) => {
+    navigator.clipboard.writeText(bridgeId);
+    toast({
+      title: "Copiado",
+      description: "Bridge ID copiado al portapapeles",
+    });
+  };
+
+  const handleWalletCreated = (newWallet: InternalWallet) => {
+    // Add the new wallet to the current wallets list
+    setWallets((prevWallets) => [...prevWallets, newWallet]);
+    // Refresh the user data to update wallet count
+    fetchUserWallets();
+  };
+
   const getChainInfo = (chain: string) => {
     return (
       SUPPORTED_CHAINS[chain] || {
@@ -187,8 +211,18 @@ export default function UserWalletsPage() {
     return user.email?.[0]?.toUpperCase() || "U";
   };
 
-  // Check if user is admin
-  if (!profile || profile.role !== "SUPERADMIN") {
+  const formatDateTime = (date: Date | string) => {
+    return new Date(date).toLocaleString("es-ES", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  // Check if user has wallet access
+  if (!profile || (profile.role !== "ADMIN" && profile.role !== "SUPERADMIN")) {
     return (
       <div className="container mx-auto py-10">
         <Card className="max-w-md mx-auto">
@@ -300,16 +334,20 @@ export default function UserWalletsPage() {
             <Database className="h-3 w-3" />
             Base de Datos Local
           </Badge>
-          <Button
-            onClick={handleSyncWallets}
-            variant="outline"
-            size="sm"
-            disabled={syncing || !user.kycProfile?.bridgeCustomerId}
-            className="flex items-center gap-2"
-          >
-            <RotateCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
-            {syncing ? "Sincronizando..." : "Sincronizar"}
-          </Button>
+          {profile.role === "SUPERADMIN" && (
+            <Button
+              onClick={handleSyncWallets}
+              variant="outline"
+              size="sm"
+              disabled={syncing || !user.kycProfile?.bridgeCustomerId}
+              className="flex items-center gap-2"
+            >
+              <RotateCw
+                className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`}
+              />
+              {syncing ? "Sincronizando..." : "Sincronizar"}
+            </Button>
+          )}
           <Button
             onClick={handleRefresh}
             variant="outline"
@@ -389,11 +427,7 @@ export default function UserWalletsPage() {
                   <div className="flex items-center gap-1 mt-1">
                     <Calendar className="h-3 w-3" />
                     <span className="text-sm">
-                      {new Date(user.createdAt).toLocaleDateString("es-ES", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
+                      {formatDateTime(user.createdAt)}
                     </span>
                   </div>
                 </div>
@@ -411,6 +445,40 @@ export default function UserWalletsPage() {
                     </Badge>
                   </div>
                 </div>
+                {profile.role === "SUPERADMIN" && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Bridge Customer ID
+                    </label>
+                    {user.kycProfile?.bridgeCustomerId ? (
+                      <div className="flex items-center gap-2 mt-1">
+                        <code className="text-sm bg-orange-50 px-2 py-1 rounded border border-orange-200 text-orange-800">
+                          {user.kycProfile.bridgeCustomerId}
+                        </code>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            handleCopyBridgeId(
+                              user.kycProfile!.bridgeCustomerId!
+                            )
+                          }
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="secondary" className="text-xs">
+                          No disponible
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          (KYC no completado)
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -421,9 +489,18 @@ export default function UserWalletsPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold">Wallets de Blockchain</h2>
-          <Badge variant="secondary">
-            {wallets.length} wallet{wallets.length !== 1 ? "s" : ""}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary">
+              {wallets.length} wallet{wallets.length !== 1 ? "s" : ""}
+            </Badge>
+            {user && profile.role === "SUPERADMIN" && (
+              <CreateWalletModal
+                user={user}
+                onWalletCreated={handleWalletCreated}
+                disabled={syncing}
+              />
+            )}
+          </div>
         </div>
 
         {wallets.length === 0 ? (
@@ -435,18 +512,31 @@ export default function UserWalletsPage() {
                 <p className="text-muted-foreground mb-4">
                   Este usuario aún no tiene wallets configuradas en el sistema.
                 </p>
-                {user.kycProfile?.bridgeCustomerId && (
-                  <Button
-                    onClick={handleSyncWallets}
-                    disabled={syncing}
-                    className="flex items-center gap-2"
-                  >
-                    <RotateCw
-                      className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`}
+                <div className="flex flex-col sm:flex-row items-center gap-2 justify-center">
+                  {user.kycProfile?.bridgeCustomerId &&
+                    profile.role === "SUPERADMIN" && (
+                      <Button
+                        onClick={handleSyncWallets}
+                        disabled={syncing}
+                        variant="outline"
+                        className="flex items-center gap-2"
+                      >
+                        <RotateCw
+                          className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`}
+                        />
+                        {syncing
+                          ? "Sincronizando..."
+                          : "Sincronizar desde Bridge"}
+                      </Button>
+                    )}
+                  {user && profile.role === "SUPERADMIN" && (
+                    <CreateWalletModal
+                      user={user}
+                      onWalletCreated={handleWalletCreated}
+                      disabled={syncing}
                     />
-                    {syncing ? "Sincronizando..." : "Sincronizar desde Bridge"}
-                  </Button>
-                )}
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -458,7 +548,16 @@ export default function UserWalletsPage() {
               return (
                 <Card
                   key={wallet.id}
-                  className="hover:shadow-md transition-shadow"
+                  className={`hover:shadow-md transition-shadow ${
+                    profile.role === "SUPERADMIN"
+                      ? "cursor-pointer"
+                      : "cursor-default"
+                  }`}
+                  onClick={() => {
+                    if (profile.role === "SUPERADMIN") {
+                      router.push(`/wallets/${userId}/${wallet.id}`);
+                    }
+                  }}
                 >
                   <CardHeader>
                     <div className="flex items-center justify-between">
@@ -500,6 +599,28 @@ export default function UserWalletsPage() {
                   <CardContent className="space-y-4">
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">
+                        Peyo ID (ID Interno)
+                      </label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <code className="flex-1 text-sm bg-blue-50 px-3 py-2 rounded font-mono break-all border border-blue-200">
+                          {wallet.id}
+                        </code>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCopyWalletId(wallet.id);
+                          }}
+                          className="flex-shrink-0"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">
                         Dirección de Wallet
                       </label>
                       <div className="flex items-center gap-2 mt-1">
@@ -509,7 +630,10 @@ export default function UserWalletsPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleCopyAddress(wallet.address)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCopyAddress(wallet.address);
+                          }}
                           className="flex-shrink-0"
                         >
                           <Copy className="h-4 w-4" />
@@ -528,9 +652,7 @@ export default function UserWalletsPage() {
                           <Calendar className="h-3 w-3" />
                           <span>
                             {wallet.bridgeCreatedAt
-                              ? new Date(
-                                  wallet.bridgeCreatedAt
-                                ).toLocaleDateString("es-ES")
+                              ? formatDateTime(wallet.bridgeCreatedAt)
                               : "N/A"}
                           </span>
                         </div>
@@ -541,11 +663,7 @@ export default function UserWalletsPage() {
                         </label>
                         <div className="flex items-center gap-1 mt-1">
                           <Activity className="h-3 w-3" />
-                          <span>
-                            {new Date(wallet.updatedAt).toLocaleDateString(
-                              "es-ES"
-                            )}
-                          </span>
+                          <span>{formatDateTime(wallet.updatedAt)}</span>
                         </div>
                       </div>
                     </div>
@@ -559,6 +677,40 @@ export default function UserWalletsPage() {
                           {wallet.isActive ? "Activa" : "Inactiva"}
                         </Badge>
                       </div>
+                    </div>
+
+                    <Separator />
+
+                    <div className="flex items-center justify-between pt-2">
+                      <div className="text-sm text-muted-foreground">
+                        {profile.role === "SUPERADMIN"
+                          ? "Click para ver el historial de transacciones"
+                          : "Solo superadministradores pueden ver transacciones"}
+                      </div>
+                      {profile.role === "SUPERADMIN" ? (
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/wallets/${userId}/${wallet.id}`);
+                          }}
+                          variant="outline"
+                          size="sm"
+                          className="flex items-center gap-2"
+                        >
+                          <Activity className="h-4 w-4" />
+                          Ver Transacciones
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled
+                          className="flex items-center gap-2 opacity-50"
+                        >
+                          <Activity className="h-4 w-4" />
+                          Ver Transacciones
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

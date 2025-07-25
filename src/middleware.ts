@@ -2,6 +2,7 @@ import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
   const supabase = createMiddlewareClient({ req, res });
@@ -29,6 +30,9 @@ export async function middleware(req: NextRequest) {
     redirectUrl.pathname = "/dashboard";
     return NextResponse.redirect(redirectUrl);
   }
+
+  // Note: Role-based access control is handled in the AuthProvider and components
+  // to avoid infinite loops and ensure proper session handling
 
   return res;
 }

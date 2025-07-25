@@ -26,6 +26,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { PasswordInput } from "@/components/utils/password-input";
 import { PasswordStrengthIndicator } from "@/components/utils/password-strength-indicator";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { saltAndHashPassword } from "@/lib/auth/password-crypto";
+import { useAuth } from "@/providers/auth-provider";
 
 // Password validation schema
 const passwordFormSchema = z
@@ -59,6 +61,7 @@ export function PasswordDialog({ open, onOpenChange }: PasswordDialogProps) {
   const [password, setPassword] = useState("");
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useAuth();
 
   const form = useForm<PasswordFormValues>({
     resolver: zodResolver(passwordFormSchema),
@@ -78,16 +81,27 @@ export function PasswordDialog({ open, onOpenChange }: PasswordDialogProps) {
     try {
       setIsSubmitting(true);
 
-      // Call API to update password with plain text passwords
-      // Supabase Auth handles the hashing internally
+      // Hash the current password with email as salt (same as sign-in)
+      const hashedCurrentPassword = await saltAndHashPassword(
+        data.currentPassword,
+        user?.email || ""
+      );
+
+      // Hash the new password with email as salt (same as sign-in)
+      const hashedNewPassword = await saltAndHashPassword(
+        data.newPassword,
+        user?.email || ""
+      );
+
+      // Call API to update password with hashed passwords
       const response = await fetch("/api/user/password", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          currentPassword: data.currentPassword,
-          newPassword: data.newPassword,
+          currentPassword: hashedCurrentPassword,
+          newPassword: hashedNewPassword,
         }),
       });
 

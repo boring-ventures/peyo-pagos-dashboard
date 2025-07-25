@@ -25,13 +25,13 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/use-toast";
-import type { WalletSyncResponse } from "@/types/wallet";
+import type { WalletFilters as WalletFiltersType } from "@/types/wallet";
 
 export default function WalletsPage() {
   const { profile } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<WalletFiltersType>({
     chain: "all",
     hasWallets: "all",
     walletTag: "all",
@@ -50,7 +50,7 @@ export default function WalletsPage() {
     setRefreshKey((prev) => prev + 1);
   };
 
-  const handleFiltersChange = (newFilters: typeof filters) => {
+  const handleFiltersChange = (newFilters: WalletFiltersType) => {
     setFilters(newFilters);
   };
 
@@ -75,7 +75,7 @@ export default function WalletsPage() {
         title: "Sincronización completada",
         description: "Las wallets han sido actualizadas correctamente.",
       });
-    } catch (error) {
+    } catch {
       toast({
         title: "Error en sincronización",
         description: "Hubo un problema al sincronizar las wallets.",
@@ -91,8 +91,8 @@ export default function WalletsPage() {
     return <WalletLoader />;
   }
 
-  // Check if user is admin
-  if (!profile || profile.role !== "SUPERADMIN") {
+  // Check if user has wallet access
+  if (!profile || (profile.role !== "ADMIN" && profile.role !== "SUPERADMIN")) {
     return (
       <div className="container mx-auto py-10">
         <Card className="max-w-md mx-auto">
@@ -222,8 +222,6 @@ export default function WalletsPage() {
             </CardContent>
           </Card>
         </TabsContent>
-
-
       </Tabs>
     </div>
   );

@@ -36,10 +36,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Passwords are already hashed client-side with saltAndHashPassword(password, email)
+    // No additional hashing needed - use the pre-hashed passwords directly
+    const finalCurrentPassword = currentPassword;
+    const finalNewPassword = newPassword;
+
     // First verify the current password by signing in
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: userEmail,
-      password: currentPassword,
+      password: finalCurrentPassword,
     });
 
     if (signInError) {
@@ -52,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     // Change the password
     const { error: updateError } = await supabase.auth.updateUser({
-      password: newPassword,
+      password: finalNewPassword,
     });
 
     if (updateError) {

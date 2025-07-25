@@ -49,7 +49,7 @@ import type {
   PaginationMeta,
   WalletApiResponse,
   WalletFilters,
-  Wallet,
+  Wallet as WalletType,
 } from "@/types/wallet";
 import { SUPPORTED_CHAINS, WALLET_TAGS } from "@/types/wallet";
 
@@ -163,12 +163,12 @@ export function WalletDataTable({ filters, refreshKey }: WalletDataTableProps) {
       .slice(0, 2);
   };
 
-  const getWalletChains = (wallets: Wallet[]) => {
+  const getWalletChains = (wallets: WalletType[]) => {
     const chains = new Set(wallets.map((wallet) => wallet.chain));
     return Array.from(chains);
   };
 
-  const getWalletTags = (wallets: Wallet[]) => {
+  const getWalletTags = (wallets: WalletType[]) => {
     const tags = new Set(wallets.map((wallet) => wallet.walletTag));
     return Array.from(tags);
   };
@@ -177,6 +177,16 @@ export function WalletDataTable({ filters, refreshKey }: WalletDataTableProps) {
     if (count === 0) return "secondary";
     if (count <= 2) return "default";
     return "destructive";
+  };
+
+  const formatDateTime = (date: Date | string) => {
+    return new Date(date).toLocaleString("es-ES", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   const getSortIcon = (field: string) => {
@@ -380,7 +390,7 @@ export function WalletDataTable({ filters, refreshKey }: WalletDataTableProps) {
                 <TableCell>
                   <div className="flex items-center gap-1 text-sm text-muted-foreground">
                     <Calendar className="w-3 h-3" />
-                    {new Date(user.createdAt).toLocaleDateString("es-ES")}
+                    {formatDateTime(user.createdAt)}
                   </div>
                 </TableCell>
 

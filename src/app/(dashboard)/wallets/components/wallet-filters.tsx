@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import {
   SUPPORTED_CHAINS,
   WALLET_TAGS,
@@ -29,34 +29,41 @@ export function WalletFilters({
 }: WalletFiltersProps) {
   const [searchInput, setSearchInput] = useState(filters.search);
 
+  const handleFiltersChange = useCallback(
+    (newFilters: WalletFilters) => {
+      onFiltersChange(newFilters);
+    },
+    [onFiltersChange]
+  );
+
   // Debounced search
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      onFiltersChange({ ...filters, search: searchInput });
+      handleFiltersChange({ ...filters, search: searchInput });
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [searchInput]);
+  }, [searchInput, filters, handleFiltersChange]);
 
   const handleSearchChange = (value: string) => {
     setSearchInput(value);
   };
 
   const handleChainChange = (value: string) => {
-    onFiltersChange({ ...filters, chain: value });
+    handleFiltersChange({ ...filters, chain: value });
   };
 
   const handleWalletTagChange = (value: string) => {
-    onFiltersChange({ ...filters, walletTag: value });
+    handleFiltersChange({ ...filters, walletTag: value });
   };
 
   const handleHasWalletsChange = (value: string) => {
-    onFiltersChange({ ...filters, hasWallets: value });
+    handleFiltersChange({ ...filters, hasWallets: value });
   };
 
   const clearFilters = () => {
     setSearchInput("");
-    onFiltersChange({
+    handleFiltersChange({
       chain: "all",
       hasWallets: "all",
       walletTag: "all",
@@ -165,7 +172,9 @@ export function WalletFilters({
           </span>
 
           {filters.search && (
-            <Badge variant="secondary">Búsqueda: "{filters.search}"</Badge>
+            <Badge variant="secondary">
+              Búsqueda: &quot;{filters.search}&quot;
+            </Badge>
           )}
 
           {filters.chain !== "all" && (

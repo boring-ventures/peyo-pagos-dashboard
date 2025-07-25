@@ -63,7 +63,7 @@ type SortConfig = {
 interface UserDataTableProps {
   filters: UserFilters;
   refreshKey: number;
-  showOnlyRole?: "USER" | "SUPERADMIN";
+  showOnlyRole?: "USER" | "ADMIN" | "SUPERADMIN";
 }
 
 export function UserDataTable({

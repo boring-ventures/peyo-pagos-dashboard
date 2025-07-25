@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
       where: { userId: session.user.id },
     });
 
-    if (!currentUserProfile || currentUserProfile.role !== "SUPERADMIN") {
+    if (!currentUserProfile || (currentUserProfile.role !== "ADMIN" && currentUserProfile.role !== "SUPERADMIN")) {
       return NextResponse.json(
         { error: "Unauthorized - Admin access required" },
         { status: 403 }
@@ -147,7 +147,7 @@ export async function PUT(req: NextRequest) {
       where: { userId: session.user.id },
     });
 
-    if (!currentUserProfile || currentUserProfile.role !== "SUPERADMIN") {
+    if (!currentUserProfile || (currentUserProfile.role !== "ADMIN" && currentUserProfile.role !== "SUPERADMIN")) {
       return NextResponse.json(
         { error: "Unauthorized - Admin access required" },
         { status: 403 }
