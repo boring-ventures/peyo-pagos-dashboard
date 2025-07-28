@@ -1,6 +1,7 @@
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { hashPassword } from "@/lib/auth/password-crypto";
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,10 +37,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Passwords are already hashed client-side with saltAndHashPassword(password, email)
-    // No additional hashing needed - use the pre-hashed passwords directly
-    const finalCurrentPassword = currentPassword;
-    const finalNewPassword = newPassword;
+    // Since we're receiving pre-hashed passwords, we need to hash them again
+    // to match Supabase's expected format (double hashing for security)
+    const finalCurrentPassword = await hashPassword(currentPassword);
+    const finalNewPassword = await hashPassword(newPassword);
 
     // First verify the current password by signing in
     const { error: signInError } = await supabase.auth.signInWithPassword({

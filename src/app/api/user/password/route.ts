@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
-
+import { hashPassword } from "@/lib/auth/password-crypto";
 
 // PUT: Update user password
 export async function PUT(request: NextRequest) {
@@ -27,9 +27,9 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Password is already hashed client-side with saltAndHashPassword(password, email)
-    // No additional hashing needed - use the pre-hashed password directly  
-    const finalHashedPassword = newPassword;
+    // Since we're receiving pre-hashed passwords, we need to hash them again
+    // to match Supabase's expected format (double hashing for security)
+    const finalHashedPassword = await hashPassword(newPassword);
 
     // Update the password using Supabase Auth API
     // Note: Supabase Auth updateUser doesn't require current password verification

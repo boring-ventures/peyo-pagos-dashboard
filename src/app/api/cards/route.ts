@@ -2,170 +2,191 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import prisma from "@/lib/prisma";
-import { UserRole } from "@prisma/client";
+import { EventType } from "@prisma/client";
 
-// Types for the user-centric cards response
-interface UserWithCards {
-  id: string;
-  userId: string;
-  firstName: string | null;
-  lastName: string | null;
-  email: string | null;
-  status: string;
-  createdAt: Date;
-  cardsCount: number;
-  cards?: {
-    id: string;
-    moonCardId: string;
-    balance: number;
-    availableBalance: number;
-    terminated: boolean;
-    frozen: boolean;
-    isActive: boolean;
-    createdAt: Date;
-  }[];
-}
-
-interface UsersWithCardsResponse {
-  users: UserWithCards[];
-  total: number;
-  page: number;
-  limit: number;
-}
-
-// GET /api/cards - List users with their card counts and information
 export async function GET(request: NextRequest) {
   try {
-    // Check authentication
     const supabase = createRouteHandlerClient({ cookies });
     const {
       data: { session },
-      error: sessionError,
     } = await supabase.auth.getSession();
 
-    if (sessionError || !session) {
+    if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if user has permission to view cards
-    const userProfile = await prisma.profile.findUnique({
+    // Get user profile with role
+    const profile = await prisma.profile.findUnique({
       where: { userId: session.user.id },
-      select: { role: true },
     });
 
     if (
-      !userProfile ||
-      (userProfile.role !== UserRole.ADMIN &&
-        userProfile.role !== UserRole.SUPERADMIN)
+      !profile ||
+      (profile.role !== "ADMIN" && profile.role !== "SUPERADMIN")
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const searchParams = request.nextUrl.searchParams;
+    const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
-    const hasCards = searchParams.get("hasCards"); // 'true', 'false', or null for all
-    const cardStatus = searchParams.get("cardStatus"); // 'active', 'frozen', 'terminated', 'inactive'
-    const search = searchParams.get("search");
+    const search = searchParams.get("search") || "";
+    const hasCards = searchParams.get("hasCards") || "all";
+    const cardStatus = searchParams.get("cardStatus");
 
     const skip = (page - 1) * limit;
 
-    // Build where clause for users (only USER role profiles)
-    const userWhere: Record<string, unknown> = {
-      role: UserRole.USER,
+    // Build where conditions
+    const whereConditions: any = {
+      role: "USER", // Only get USER profiles
     };
 
+    // Search filter
     if (search) {
-      userWhere.OR = [
-        { firstName: { contains: search, mode: "insensitive" } },
-        { lastName: { contains: search, mode: "insensitive" } },
-        { email: { contains: search, mode: "insensitive" } },
+      whereConditions.OR = [
+        {
+          firstName: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+        {
+          lastName: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+        {
+          email: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
       ];
     }
 
-    // Build card filter for hasCards
-    let cardFilter: Record<string, unknown> = {};
-    if (cardStatus) {
+    // Cards filter
+    if (hasCards === "with-cards") {
+      whereConditions.cards = {
+        some: {},
+      };
+    } else if (hasCards === "without-cards") {
+      whereConditions.cards = {
+        none: {},
+      };
+    }
+
+    // Card status filter (only for SUPERADMINs)
+    if (profile.role === "SUPERADMIN" && cardStatus && cardStatus !== "all") {
+      const statusConditions: any = {};
+
       switch (cardStatus) {
         case "active":
-          cardFilter = { isActive: true, terminated: false, frozen: false };
-          break;
-        case "terminated":
-          cardFilter = { terminated: true };
+          statusConditions.AND = [
+            { isActive: true },
+            { terminated: false },
+            { frozen: false },
+          ];
           break;
         case "frozen":
-          cardFilter = { frozen: true };
+          statusConditions.frozen = true;
+          break;
+        case "terminated":
+          statusConditions.terminated = true;
           break;
         case "inactive":
-          cardFilter = { isActive: false };
+          statusConditions.AND = [{ isActive: false }, { terminated: false }];
           break;
+      }
+
+      if (Object.keys(statusConditions).length > 0) {
+        whereConditions.cards = {
+          some: statusConditions,
+        };
       }
     }
 
-    // Get users with their card counts
-    const [users, total] = await Promise.all([
-      prisma.profile.findMany({
-        where: userWhere,
-        include: {
-          cards: {
-            where: cardFilter,
-            select: {
-              id: true,
-              moonCardId: true,
-              balance: true,
-              availableBalance: true,
-              terminated: true,
-              frozen: true,
-              isActive: true,
-              createdAt: true,
-            },
-          },
-        },
-        orderBy: { createdAt: "desc" },
-        skip,
-        take: limit,
-      }),
-      prisma.profile.count({ where: userWhere }),
-    ]);
+    // Get users with different data based on role
+    const users = await prisma.profile.findMany({
+      where: whereConditions,
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      include: {
+        cards:
+          profile.role === "SUPERADMIN"
+            ? {
+                select: {
+                  id: true,
+                  balance: true,
+                  availableBalance: true,
+                  isActive: true,
+                  terminated: true,
+                  frozen: true,
+                  createdAt: true,
+                },
+              }
+            : {
+                select: {
+                  id: true,
+                  isActive: true,
+                  terminated: true,
+                  frozen: true,
+                  createdAt: true,
+                  // Exclude sensitive financial data for ADMINs
+                },
+              },
+      },
+    });
 
-    // Filter users based on hasCards parameter
-    let filteredUsers = users;
-    if (hasCards === "true") {
-      filteredUsers = users.filter((user) => user.cards.length > 0);
-    } else if (hasCards === "false") {
-      filteredUsers = users.filter((user) => user.cards.length === 0);
-    }
+    // Get total count
+    const total = await prisma.profile.count({
+      where: whereConditions,
+    });
 
-    // Transform for response
-    const transformedUsers: UserWithCards[] = filteredUsers.map((user) => ({
+    // Transform data based on role
+    const transformedUsers = users.map((user) => ({
       id: user.id,
       userId: user.userId,
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
       status: user.status,
+      role: user.role,
       createdAt: user.createdAt,
-      cardsCount: user.cards.length,
-      cards: user.cards.map((card) => ({
-        id: card.id,
-        moonCardId: card.moonCardId,
-        balance: Number(card.balance),
-        availableBalance: Number(card.availableBalance),
-        terminated: card.terminated,
-        frozen: card.frozen,
-        isActive: card.isActive,
-        createdAt: card.createdAt,
-      })),
+      cards:
+        profile.role === "SUPERADMIN"
+          ? user.cards.map((card) => ({
+              id: card.id,
+              balance: card.balance,
+              availableBalance: card.availableBalance,
+              isActive: card.isActive,
+              terminated: card.terminated,
+              frozen: card.frozen,
+              createdAt: card.createdAt,
+            }))
+          : user.cards.map((card) => ({
+              id: card.id,
+              balance: 0, // Hidden for ADMINs
+              availableBalance: 0, // Hidden for ADMINs
+              isActive: card.isActive,
+              terminated: card.terminated,
+              frozen: card.frozen,
+              createdAt: card.createdAt,
+            })),
     }));
 
-    const response: UsersWithCardsResponse = {
-      users: transformedUsers,
-      total: hasCards ? filteredUsers.length : total,
-      page,
-      limit,
-    };
+    const totalPages = Math.ceil(total / limit);
 
-    return NextResponse.json(response);
+    return NextResponse.json({
+      users: transformedUsers,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+      },
+    });
   } catch (error) {
     console.error("Error fetching users with cards:", error);
     return NextResponse.json(
@@ -175,139 +196,125 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/cards - Create a new card via PayWithMoon
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication
     const supabase = createRouteHandlerClient({ cookies });
     const {
       data: { session },
-      error: sessionError,
     } = await supabase.auth.getSession();
 
-    if (sessionError || !session) {
+    if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if user has permission to create cards
-    const userProfile = await prisma.profile.findUnique({
+    // Get user profile with role
+    const profile = await prisma.profile.findUnique({
       where: { userId: session.user.id },
-      select: { role: true },
     });
 
-    if (
-      !userProfile ||
-      (userProfile.role !== UserRole.ADMIN &&
-        userProfile.role !== UserRole.SUPERADMIN)
-    ) {
+    // Only SUPERADMINs can create cards
+    if (!profile || profile.role !== "SUPERADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const body = await request.json();
     const { profileId, amount = 100 } = body;
 
-    // Validate that the profile exists and is a USER
-    const profile = await prisma.profile.findUnique({
+    if (!profileId) {
+      return NextResponse.json(
+        { error: "Profile ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Verify the profile exists and is a USER
+    const targetProfile = await prisma.profile.findUnique({
       where: { id: profileId },
-      include: { kycProfile: true },
+      include: {
+        kycProfile: true,
+      },
     });
 
-    if (!profile) {
+    if (!targetProfile) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
 
-    if (profile.role !== UserRole.USER) {
+    if (targetProfile.role !== "USER") {
       return NextResponse.json(
         { error: "Cards can only be created for USER profiles" },
         { status: 400 }
       );
     }
 
-    if (!profile.kycProfile?.bridgeCustomerId) {
+    // Check KYC status
+    if (
+      !targetProfile.kycProfile ||
+      targetProfile.kycProfile.kycStatus !== "approved"
+    ) {
       return NextResponse.json(
-        { error: "Profile must have approved KYC to create cards" },
+        { error: "User must have approved KYC to create cards" },
         { status: 400 }
       );
     }
 
-    // TODO: Call PayWithMoon API when available
-    // For now, we simulate the response structure
-    const moonResponse = {
-      card: {
-        id: `moon_card_${Date.now()}`, // This would come from PayWithMoon
-        balance: amount,
-        available_balance: amount,
-        expiration: new Date(
-          Date.now() + 4 * 365 * 24 * 60 * 60 * 1000
-        ).toISOString(), // 4 years from now
-        display_expiration: "12/28",
-        terminated: false,
-        card_product_id: "default_product_id",
-        pan: "4242424242424242",
-        cvv: "123",
-        support_token: "support_token_123",
-        frozen: false,
-      },
+    // Simulate PayWithMoon API call
+    const mockMoonResponse = {
+      cardId: `moon_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+      balance: amount,
+      availableBalance: amount,
+      expiration: new Date(Date.now() + 3 * 365 * 24 * 60 * 60 * 1000), // 3 years from now
+      displayExpiration: new Date(
+        Date.now() + 3 * 365 * 24 * 60 * 60 * 1000
+      ).toLocaleDateString("en-US", { month: "2-digit", year: "2-digit" }),
+      cardProductId: "moon_virtual_card_v1",
+      pan: "4111111111111111", // Mock PAN (should be encrypted)
+      cvv: "123", // Mock CVV (should be encrypted)
+      supportToken: `support_${Date.now()}`,
     };
 
-    // Store card in database
+    // Create card in database
     const card = await prisma.card.create({
       data: {
-        profileId: profile.id,
-        moonCardId: moonResponse.card.id,
-        balance: moonResponse.card.balance,
-        availableBalance: moonResponse.card.available_balance,
-        expiration: new Date(moonResponse.card.expiration),
-        displayExpiration: moonResponse.card.display_expiration,
-        cardProductId: moonResponse.card.card_product_id,
-        pan: moonResponse.card.pan, // In production, this should be encrypted
-        cvv: moonResponse.card.cvv, // In production, this should be encrypted
-        supportToken: moonResponse.card.support_token,
-        terminated: moonResponse.card.terminated,
-        frozen: moonResponse.card.frozen,
-      },
-      include: {
-        profile: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
-        },
+        profileId: targetProfile.id,
+        moonCardId: mockMoonResponse.cardId,
+        balance: mockMoonResponse.balance,
+        availableBalance: mockMoonResponse.availableBalance,
+        expiration: mockMoonResponse.expiration,
+        displayExpiration: mockMoonResponse.displayExpiration,
+        cardProductId: mockMoonResponse.cardProductId,
+        pan: mockMoonResponse.pan, // In production, encrypt this
+        cvv: mockMoonResponse.cvv, // In production, encrypt this
+        supportToken: mockMoonResponse.supportToken,
       },
     });
 
-    // Create event for card creation
+    // Create event
     await prisma.event.create({
       data: {
-        type: "USER_CARD_CREATED",
+        profileId: targetProfile.id,
+        type: EventType.USER_CARD_CREATED,
         module: "PROFILE",
-        description: "User card created via PayWithMoon",
-        profileId: profile.id,
+        description: `Card created with PayWithMoon ID: ${mockMoonResponse.cardId}`,
         metadata: {
           cardId: card.id,
-          moonCardId: card.moonCardId,
-          amount: amount,
+          moonCardId: mockMoonResponse.cardId,
+          initialBalance: amount,
         },
       },
     });
 
-    // Return card data (excluding sensitive information)
-    const responseCard = {
-      id: card.id,
-      moonCardId: card.moonCardId,
-      balance: Number(card.balance),
-      availableBalance: Number(card.availableBalance),
-      displayExpiration: card.displayExpiration,
-      terminated: card.terminated,
-      frozen: card.frozen,
-      isActive: card.isActive,
-      createdAt: card.createdAt,
-      profile: card.profile,
-    };
-
-    return NextResponse.json({ card: responseCard }, { status: 201 });
+    return NextResponse.json({
+      message: "Card created successfully",
+      card: {
+        id: card.id,
+        moonCardId: card.moonCardId,
+        balance: card.balance,
+        availableBalance: card.availableBalance,
+        displayExpiration: card.displayExpiration,
+        isActive: card.isActive,
+        createdAt: card.createdAt,
+      },
+    });
   } catch (error) {
     console.error("Error creating card:", error);
     return NextResponse.json(

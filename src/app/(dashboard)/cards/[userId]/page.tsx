@@ -174,7 +174,7 @@ export default function UserCardsPage() {
   };
 
   // Check if user has card access
-  if (!profile || (profile.role !== "ADMIN" && profile.role !== "SUPERADMIN")) {
+  if (!profile || profile.role !== "SUPERADMIN") {
     return (
       <div className="container mx-auto py-10">
         <Card className="max-w-md mx-auto">
@@ -182,7 +182,9 @@ export default function UserCardsPage() {
             <Shield className="mx-auto h-12 w-12 text-red-500 mb-4" />
             <CardTitle className="text-xl">Acceso Denegado</CardTitle>
             <CardDescription>
-              No tienes permisos para acceder a este módulo.
+              {!profile
+                ? "No tienes permisos para acceder a este módulo."
+                : "Solo los superadministradores pueden ver los detalles de las tarjetas individuales."}
             </CardDescription>
           </CardHeader>
         </Card>

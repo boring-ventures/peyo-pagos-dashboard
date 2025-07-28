@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import prisma from "@/lib/prisma";
 import type { UserRole, UserStatus, Prisma } from "@prisma/client";
-
+import { hashPassword } from "@/lib/auth/password-crypto";
 
 // GET: Fetch all users for user management (admin only)
 export async function GET(req: NextRequest) {
@@ -269,9 +269,9 @@ export async function POST(req: NextRequest) {
     // Create Supabase admin client
     const supabaseAdmin = createClient(supabaseUrl!, supabaseServiceKey);
 
-    // Password is already hashed client-side with saltAndHashPassword(password, email)
-    // No additional hashing needed - use the pre-hashed password directly
-    const finalHashedPassword = password;
+    // Since we're receiving pre-hashed passwords, we need to hash them again
+    // to match Supabase's expected format (double hashing for security)
+    const finalHashedPassword = await hashPassword(password);
 
     // Create auth user in Supabase
     const { data: authUser, error: authError } =

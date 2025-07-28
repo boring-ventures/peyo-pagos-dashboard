@@ -103,30 +103,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Fetch and validate user profile
       await fetchProfile(data.user.id);
 
-      // Wait a moment for profile state to update
-      // This helps prevent race conditions
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      // Get the profile from the API response directly
-      const profileResponse = await fetch(`/api/profile/${data.user.id}`);
-      if (!profileResponse.ok) {
-        throw new Error("User profile not found. Please contact support.");
-      }
-
-      const { profile: userProfile } = await profileResponse.json();
-
       // Check if profile exists and has valid role
-      if (!userProfile) {
+      if (!profile) {
         throw new Error("User profile not found. Please contact support.");
       }
 
       // Validate that user has access to dashboard
-      if (!canAccessModule(userProfile.role, "dashboard")) {
-        // Sign out the user since they don't have access
-        await supabase.auth.signOut();
-        throw new Error(
-          "You don't have permission to access the dashboard. Only administrators can access this platform."
-        );
+      if (!canAccessModule(profile?.role, "dashboard")) {
+        throw new Error("You don't have permission to access the dashboard.");
       }
     }
 
