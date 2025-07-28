@@ -1,5 +1,6 @@
-// This is a placeholder implementation for authentication
-// In a real application, you would use a proper auth library like NextAuth.js
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
+import prisma from "@/lib/prisma";
 
 interface User {
   id: string;
@@ -13,23 +14,52 @@ interface Session {
   expires: Date;
 }
 
-// Mock implementation of auth function
+// Real implementation using Supabase authentication
 export async function auth(): Promise<Session | null> {
-  // In a real app, this would check for a valid session
-  // For demo purposes, we're returning a mock session
+  try {
+    const supabase = createRouteHandlerClient({ cookies });
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession();
 
-  // If you're implementing a real auth system, replace this with actual auth logic
-  const mockUser: User = {
-    id: "user_123",
-    email: "user@example.com",
-    name: "Demo User",
-    role: "USER",
-  };
+    if (error || !session) {
+      return null;
+    }
 
-  return {
-    user: mockUser,
-    expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
-  };
+    // Get user profile from database to get role information
+    const profile = await prisma.profile.findUnique({
+      where: { userId: session.user.id },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+      },
+    });
+
+    if (!profile) {
+      return null;
+    }
+
+    return {
+      user: {
+        id: session.user.id,
+        email: profile.email || session.user.email,
+        name: `${profile.firstName || ""} ${profile.lastName || ""}`.trim(),
+        role: profile.role,
+      },
+      expires: new Date(
+        session.expires_at
+          ? session.expires_at * 1000
+          : Date.now() + 24 * 60 * 60 * 1000
+      ),
+    };
+  } catch (error) {
+    console.error("Auth error:", error);
+    return null;
+  }
 }
 
 // Function to get the current user (useful for client components)

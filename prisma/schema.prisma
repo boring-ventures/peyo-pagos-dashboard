@@ -162,6 +162,9 @@ enum EventType {
   USER_KYC_REJECTED
   USER_WALLET_CREATED
   USER_CARD_CREATED // Added for card tracking
+  SYSTEM_CONFIG_UPDATED
+  SYSTEM_CONFIG_CREATED
+  SYSTEM_CONFIG_DELETED
 }
 
 enum EventModule {
@@ -169,6 +172,28 @@ enum EventModule {
   KYC
   PROFILE
   WALLET
+  SYSTEM_CONFIG
+}
+
+enum ConfigType {
+  FEE
+  LIMIT
+  FEATURE_FLAG
+  INTEGRATION_SETTING
+}
+
+enum FeeType {
+  DEVELOPER_FEE
+  CREDIT_CARD_EMISSION_FEE
+  TRANSACTION_FEE
+  WITHDRAWAL_FEE
+  DEPOSIT_FEE
+}
+
+enum ConfigStatus {
+  active
+  inactive
+  deprecated
 }
 
 model Profile {
@@ -385,16 +410,24 @@ model Event {
   // User Reference
   profileId     String      @map("profile_id")
   
+  // Optional System Configuration References
+  systemConfigId String?    @map("system_config_id")
+  feeConfigId   String?     @map("fee_config_id")
+  
   // Metadata
   metadata      Json?       // Flexible field for additional event data
   
   // Relations
   profile       Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  systemConfig  SystemConfig? @relation(fields: [systemConfigId], references: [id])
+  feeConfig     FeeConfig?  @relation(fields: [feeConfigId], references: [id])
   
   @@index([profileId])
   @@index([type])
   @@index([module])
   @@index([createdAt])
+  @@index([systemConfigId])
+  @@index([feeConfigId])
   @@map("events")
 }
 
@@ -568,5 +601,152 @@ model Card {
   @@index([frozen])
   @@index([isActive])
   @@map("cards")
+}
+
+// ===========================================
+// SYSTEM CONFIGURATION MODELS
+// ===========================================
+//
+// Purpose: Manage configurable system settings including fees,
+// limits, feature flags, and integration settings that can be
+// modified from the dashboard without code changes.
+//
+// Access: Only SUPERADMIN and ADMIN roles can modify these settings
+//
+// ===========================================
+
+model SystemConfig {
+  id            String      @id @default(cuid())
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  // Configuration Identity
+  key           String      @unique // Unique identifier for the config (e.g., "developer_fee", "credit_card_emission_fee")
+  name          String      // Human-readable name (e.g., "Developer Fee", "Credit Card Emission Fee")
+  description   String?     // Optional description of what this config controls
+  
+  // Configuration Type and Status
+  type          ConfigType  // FEE, LIMIT, FEATURE_FLAG, INTEGRATION_SETTING
+  status        ConfigStatus @default(active)
+  
+  // Configuration Value (JSON for flexibility)
+  value         Json        // The actual configuration value (can be number, string, boolean, object, array)
+  defaultValue  Json?       // Default value for this configuration
+  
+  // Validation and Constraints
+  minValue      Json?       // Minimum allowed value (for numeric configs)
+  maxValue      Json?       // Maximum allowed value (for numeric configs)
+  allowedValues Json?       // Array of allowed values (for enum-like configs)
+  validationRule String?    // Custom validation rule or regex pattern
+  
+  // Metadata
+  category      String?     // Grouping configs (e.g., "fees", "limits", "integrations")
+  tags          String[]    @default([]) // For additional categorization
+  
+  // Audit Trail
+  lastModifiedBy String?    @map("last_modified_by") // Profile ID of who last modified this
+  lastModifiedAt DateTime?  @map("last_modified_at")
+  
+  // Relations
+  configHistory SystemConfigHistory[] // Track all changes to this config
+  events        Event[]     // Track system events related to this config
+  
+  @@index([key])
+  @@index([type])
+  @@index([status])
+  @@index([category])
+  @@map("system_configs")
+}
+
+model SystemConfigHistory {
+  id            String      @id @default(cuid())
+  createdAt     DateTime    @default(now())
+  
+  // Configuration Reference
+  configId      String      @map("config_id")
+  
+  // Change Information
+  oldValue      Json?       @map("old_value") // Previous value
+  newValue      Json        @map("new_value") // New value
+  changeReason  String?     @map("change_reason") // Optional reason for the change
+  
+  // Audit Information
+  modifiedBy    String      @map("modified_by") // Profile ID of who made the change
+  modifiedAt    DateTime    @default(now()) @map("modified_at")
+  
+  // Relations
+  config        SystemConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+  
+  @@index([configId])
+  @@index([modifiedAt])
+  @@map("system_config_history")
+}
+
+model FeeConfig {
+  id            String      @id @default(cuid())
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  // Fee Identity
+  feeType       FeeType     @map("fee_type") // DEVELOPER_FEE, CREDIT_CARD_EMISSION_FEE, etc.
+  name          String      // Human-readable name
+  description   String?     // Description of what this fee is for
+  
+  // Fee Structure
+  amount        Decimal     @db.Decimal(10, 4) // Fee amount (supports 4 decimal places for precision)
+  currency      String      @default("USD") // Currency code (USD, EUR, etc.)
+  feeStructure  String      @default("percentage") @map("fee_structure") // percentage, fixed_amount, tiered
+  
+  // Fee Conditions
+  minAmount     Decimal?    @map("min_amount") @db.Decimal(10, 2) // Minimum transaction amount to apply fee
+  maxAmount     Decimal?    @map("max_amount") @db.Decimal(10, 2) // Maximum fee amount (for percentage fees)
+  isActive      Boolean     @default(true) @map("is_active")
+  
+  // Fee Application
+  appliesTo     String[]    @default([]) @map("applies_to") // Array of transaction types, chains, or conditions
+  excludedFrom  String[]    @default([]) @map("excluded_from") // Array of excluded transaction types or conditions
+  
+  // Metadata
+  category      String?     // Grouping fees (e.g., "crypto", "cards", "general")
+  tags          String[]    @default([])
+  
+  // Audit Trail
+  lastModifiedBy String?    @map("last_modified_by") // Profile ID of who last modified this
+  lastModifiedAt DateTime?  @map("last_modified_at")
+  
+  // Relations
+  feeHistory    FeeConfigHistory[] // Track all changes to this fee
+  events        Event[]     // Track system events related to this fee
+  
+  @@index([feeType])
+  @@index([isActive])
+  @@index([category])
+  @@map("fee_configs")
+}
+
+model FeeConfigHistory {
+  id            String      @id @default(cuid())
+  createdAt     DateTime    @default(now())
+  
+  // Fee Reference
+  feeId         String      @map("fee_id")
+  
+  // Change Information
+  oldAmount     Decimal?    @map("old_amount") @db.Decimal(10, 4)
+  newAmount     Decimal     @map("new_amount") @db.Decimal(10, 4)
+  oldCurrency   String?     @map("old_currency")
+  newCurrency   String      @map("new_currency")
+  changeReason  String?     @map("change_reason")
+  
+  // Audit Information
+  modifiedBy    String      @map("modified_by") // Profile ID of who made the change
+  modifiedAt    DateTime    @default(now()) @map("modified_at")
+  
+  // Relations
+  fee           FeeConfig   @relation(fields: [feeId], references: [id], onDelete: Cascade)
+  
+  @@index([feeId])
+  @@index([modifiedAt])
+  @@map("fee_config_history")
 }
 

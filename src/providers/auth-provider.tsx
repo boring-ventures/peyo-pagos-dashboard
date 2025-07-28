@@ -44,9 +44,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!response.ok) throw new Error("Failed to fetch profile");
       const data = await response.json();
       setProfile(data.profile);
+      return data.profile;
     } catch (error) {
       console.error("Error fetching profile:", error);
       setProfile(null);
+      return null;
     }
   };
 
@@ -101,15 +103,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (data.user) {
       // Fetch and validate user profile
-      await fetchProfile(data.user.id);
+      const userProfile = await fetchProfile(data.user.id);
 
       // Check if profile exists and has valid role
-      if (!profile) {
+      if (!userProfile) {
         throw new Error("User profile not found. Please contact support.");
       }
 
       // Validate that user has access to dashboard
-      if (!canAccessModule(profile?.role, "dashboard")) {
+      if (!canAccessModule(userProfile?.role, "dashboard")) {
         throw new Error("You don't have permission to access the dashboard.");
       }
     }

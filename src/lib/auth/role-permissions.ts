@@ -12,6 +12,8 @@ export const ROLE_PERMISSIONS = {
     canManageWallets: false,
     canManageCards: false, // Regular users cannot manage cards
     canAccessSettings: false, // Regular users also cannot access settings in the dashboard
+    canManageSystemConfig: false, // Regular users cannot manage system config
+    canManageTransactions: false, // Regular users cannot manage transactions
     requiresKYC: true,
   },
   ADMIN: {
@@ -22,6 +24,8 @@ export const ROLE_PERMISSIONS = {
     canManageWallets: true,
     canManageCards: true, // Admin can manage cards
     canAccessSettings: true,
+    canManageSystemConfig: true, // Admin can manage system config
+    canManageTransactions: true, // Admin can manage transactions
     requiresKYC: false,
   },
   SUPERADMIN: {
@@ -32,6 +36,8 @@ export const ROLE_PERMISSIONS = {
     canManageWallets: true,
     canManageCards: true, // SuperAdmin can manage cards
     canAccessSettings: true,
+    canManageSystemConfig: true, // SuperAdmin can manage system config
+    canManageTransactions: true, // SuperAdmin can manage transactions
     requiresKYC: false,
   },
 } as const;
@@ -60,6 +66,8 @@ export function canAccessModule(
     | "wallets"
     | "cards"
     | "settings"
+    | "system-config"
+    | "transactions"
 ): boolean {
   if (!userRole) return false;
 
@@ -78,6 +86,10 @@ export function canAccessModule(
       return hasPermission(userRole, "canManageCards");
     case "settings":
       return hasPermission(userRole, "canAccessSettings");
+    case "system-config":
+      return hasPermission(userRole, "canManageSystemConfig");
+    case "transactions":
+      return hasPermission(userRole, "canManageTransactions");
     default:
       return false;
   }
@@ -95,6 +107,8 @@ export function getRolesForModule(
     | "wallets"
     | "cards"
     | "settings"
+    | "system-config"
+    | "transactions"
 ): UserRole[] {
   const roles: UserRole[] = ["USER", "ADMIN", "SUPERADMIN"];
   return roles.filter((role) => canAccessModule(role, module));

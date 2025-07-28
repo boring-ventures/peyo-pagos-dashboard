@@ -5,6 +5,8 @@ import {
   Wallet,
   CreditCard,
   BarChart3,
+  Settings,
+  Activity,
 } from "lucide-react";
 import type { SidebarData } from "../types";
 import type { UserRole } from "@prisma/client";
@@ -55,6 +57,24 @@ export const getSidebarData = (userRole?: UserRole | null): SidebarData => {
       title: "Analytics de Costos",
       url: "/analytics",
       icon: BarChart3,
+    });
+  }
+
+  // Add system configuration if user has access (ADMIN and SUPERADMIN)
+  if (canAccessModule(userRole, "system-config")) {
+    adminItems.push({
+      title: "Configuración del Sistema",
+      url: "/system-config",
+      icon: Settings,
+    });
+  }
+
+  // Add transactions if user has access (ADMIN and SUPERADMIN)
+  if (canAccessModule(userRole, "transactions")) {
+    adminItems.push({
+      title: "Transacciones",
+      url: "/transactions",
+      icon: Activity,
     });
   }
 
