@@ -20,6 +20,12 @@ const nextConfig = {
         port: '',
         pathname: '/storage/v1/object/public/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'cryptologos.cc',
+        port: '',
+        pathname: '/logos/**',
+      }
     ],
   },
   output: "standalone",
@@ -58,6 +64,14 @@ const nextConfig = {
           {
             key: "Strict-Transport-Security",
             value: "max-age=63072000; includeSubDomains; preload",
+          },
+          {
+            key: "Cross-Origin-Resource-Policy",
+            value: "cross-origin",
+          },
+          {
+            key: "Cross-Origin-Embedder-Policy",
+            value: "unsafe-none",
           },
           {
             key: "Content-Security-Policy",

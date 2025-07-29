@@ -34,7 +34,7 @@ export const getSidebarData = (userRole?: UserRole | null): SidebarData => {
     });
   }
 
-  // Add wallet management if user has access
+// Add wallet management if user has access
   if (canAccessModule(userRole, "wallets")) {
     adminItems.push({
       title: "Gestión de Wallets",
