@@ -5,6 +5,9 @@ import {
   CardsStatsResponse,
   CardFilters,
   UserCardFilters,
+  FlatCardResponse,
+  FlatCardStats,
+  FlatCardFilters,
 } from "@/types/card";
 import { toast } from "@/components/ui/use-toast";
 
@@ -217,3 +220,63 @@ export function useDeleteCard() {
     },
   });
 }
+
+// Hook to fetch flat cards with filtering and pagination
+export const useFlatCards = (filters: FlatCardFilters) => {
+  return useQuery<FlatCardResponse>({
+    queryKey: ["flat-cards", filters],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+
+      // Add all filters to URL params
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+          params.append(key, value.toString());
+        }
+      });
+
+      const response = await fetch(`/api/cards/flat?${params.toString()}`);
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to fetch flat cards");
+      }
+
+      return response.json();
+    },
+    staleTime: 30000, // 30 seconds
+    gcTime: 300000, // 5 minutes
+  });
+};
+
+// Hook to fetch flat card statistics
+export const useFlatCardStats = (
+  filters?: Pick<FlatCardFilters, "startDate" | "endDate">
+) => {
+  return useQuery<FlatCardStats>({
+    queryKey: ["flat-card-stats", filters],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+
+      if (filters?.startDate) {
+        params.append("startDate", filters.startDate);
+      }
+      if (filters?.endDate) {
+        params.append("endDate", filters.endDate);
+      }
+
+      const response = await fetch(
+        `/api/cards/flat/stats?${params.toString()}`
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to fetch flat card stats");
+      }
+
+      return response.json();
+    },
+    staleTime: 60000, // 1 minute
+    gcTime: 300000, // 5 minutes
+  });
+};

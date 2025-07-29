@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
     const sortOrder = searchParams.get("sortOrder") || "desc";
 
     // Build where clause
-    const where: any = {};
+    const where: Record<string, unknown> = {};
 
     // Search across multiple fields
     if (search) {
@@ -139,7 +139,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build orderBy clause
-    const orderBy: any = {};
+    const orderBy: Record<string, string> = {};
     if (sortBy === "amount") {
       // For amount sorting, we need to convert string to number
       orderBy.amount = sortOrder;

@@ -20,6 +20,7 @@ import {
   XCircle,
   Clock,
   AlertCircle,
+  Receipt,
 } from "lucide-react";
 import {
   Table,
@@ -149,6 +150,10 @@ export function KYCDataTable({
 
   const handleViewDetails = (profile: ProfileWithKYC) => {
     router.push(`/kyc/${profile.id}`);
+  };
+
+  const handleGeneratePurchaseOrder = (profile: ProfileWithKYC) => {
+    router.push(`/purchase-orders/${profile.id}`);
   };
 
   const handleDeactivateUser = async (profile: ProfileWithKYC) => {
@@ -456,6 +461,12 @@ export function KYCDataTable({
                         >
                           <Eye className="mr-2 h-4 w-4" />
                           Ver Detalles
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleGeneratePurchaseOrder(profile)}
+                        >
+                          <Receipt className="mr-2 h-4 w-4" />
+                          Generar Orden de Compra
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => handleDeactivateUser(profile)}

@@ -1,15 +1,18 @@
 import { FeeType, ConfigStatus } from "@prisma/client";
-import { FeeCalculation } from "@/types/system-config";
+import { FeeCalculation, ConfigValue } from "@/types/system-config";
 import prisma from "@/lib/prisma";
 
 // Cache for system configurations to avoid repeated database calls
-const configCache = new Map<string, any>();
+const configCache = new Map<
+  string,
+  { value: ConfigValue; timestamp: number }
+>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Get a system configuration value by key
  */
-export async function getSystemConfig(key: string): Promise<any> {
+export async function getSystemConfig(key: string): Promise<ConfigValue> {
   // Check cache first
   const cached = configCache.get(key);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
@@ -38,7 +41,7 @@ export async function getSystemConfig(key: string): Promise<any> {
  */
 export async function getSystemConfigs(
   keys: string[]
-): Promise<Record<string, any>> {
+): Promise<Record<string, ConfigValue>> {
   const configs = await prisma.systemConfig.findMany({
     where: {
       key: { in: keys },
@@ -46,7 +49,7 @@ export async function getSystemConfigs(
     },
   });
 
-  const result: Record<string, any> = {};
+  const result: Record<string, ConfigValue> = {};
 
   for (const config of configs) {
     result[config.key] = config.value;
@@ -60,7 +63,7 @@ export async function getSystemConfigs(
  */
 export async function updateSystemConfig(
   key: string,
-  value: any,
+  value: ConfigValue,
   modifiedBy: string,
   changeReason?: string
 ): Promise<void> {
@@ -103,7 +106,15 @@ export async function updateSystemConfig(
 /**
  * Validate a configuration value against constraints
  */
-async function validateConfigValue(config: any, value: any): Promise<void> {
+async function validateConfigValue(
+  config: {
+    minValue?: ConfigValue;
+    maxValue?: ConfigValue;
+    allowedValues?: ConfigValue[];
+    validationRule?: string;
+  },
+  value: ConfigValue
+): Promise<void> {
   // Check min/max values for numeric configs
   if (typeof value === "number") {
     if (config.minValue !== null && value < config.minValue) {
@@ -135,7 +146,15 @@ async function validateConfigValue(config: any, value: any): Promise<void> {
 /**
  * Get fee configuration by type
  */
-export async function getFeeConfig(feeType: FeeType): Promise<any> {
+export async function getFeeConfig(feeType: FeeType): Promise<{
+  id: string;
+  feeType: FeeType;
+  amount: number;
+  feeStructure: string;
+  minAmount?: number;
+  maxAmount?: number;
+  isActive: boolean;
+} | null> {
   const feeConfig = await prisma.feeConfig.findFirst({
     where: {
       feeType,
@@ -211,7 +230,10 @@ export async function calculateFee(
 /**
  * Calculate tiered fee (placeholder implementation)
  */
-function calculateTieredFee(amount: number, feeConfig: any): number {
+function calculateTieredFee(
+  amount: number,
+  feeConfig: { amount: number; feeStructure: string }
+): number {
   // This is a placeholder - implement tiered fee logic based on your requirements
   return feeConfig.amount;
 }
@@ -243,7 +265,17 @@ export function clearConfigCache(): void {
 /**
  * Get all active fee configurations
  */
-export async function getAllFeeConfigs(): Promise<any[]> {
+export async function getAllFeeConfigs(): Promise<
+  {
+    id: string;
+    feeType: FeeType;
+    name: string;
+    amount: number;
+    currency: string;
+    feeStructure: string;
+    isActive: boolean;
+  }[]
+> {
   return prisma.feeConfig.findMany({
     where: { isActive: true },
     orderBy: { feeType: "asc" },
@@ -253,7 +285,16 @@ export async function getAllFeeConfigs(): Promise<any[]> {
 /**
  * Get all active system configurations
  */
-export async function getAllSystemConfigs(): Promise<any[]> {
+export async function getAllSystemConfigs(): Promise<
+  {
+    id: string;
+    key: string;
+    name: string;
+    type: string;
+    value: ConfigValue;
+    category?: string;
+  }[]
+> {
   return prisma.systemConfig.findMany({
     where: { status: ConfigStatus.active },
     orderBy: { category: "asc", name: "asc" },
@@ -271,7 +312,13 @@ export async function isFeatureEnabled(featureKey: string): Promise<boolean> {
 /**
  * Get configuration statistics for dashboard
  */
-export async function getSystemConfigStats(): Promise<any> {
+export async function getSystemConfigStats(): Promise<{
+  totalConfigs: number;
+  activeConfigs: number;
+  inactiveConfigs: number;
+  configsByType: Record<string, number>;
+  configsByCategory: Record<string, number>;
+}> {
   const [totalConfigs, activeConfigs, inactiveConfigs] = await Promise.all([
     prisma.systemConfig.count(),
     prisma.systemConfig.count({ where: { status: ConfigStatus.active } }),
@@ -309,7 +356,12 @@ export async function getSystemConfigStats(): Promise<any> {
 /**
  * Get fee configuration statistics for dashboard
  */
-export async function getFeeConfigStats(): Promise<any> {
+export async function getFeeConfigStats(): Promise<{
+  totalFees: number;
+  activeFees: number;
+  inactiveFees: number;
+  feesByType: Record<string, number>;
+}> {
   const [totalFees, activeFees, inactiveFees] = await Promise.all([
     prisma.feeConfig.count(),
     prisma.feeConfig.count({ where: { isActive: true } }),

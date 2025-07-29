@@ -113,9 +113,19 @@ function getMonthlyBreakdown(
 }
 
 // GET: Fetch platform analytics (admin only)
-export async function GET() {
+export async function GET(request: Request) {
   try {
     console.log("🔍 Analytics API - Starting request");
+
+    // Parse query parameters for date range
+    const { searchParams } = new URL(request.url);
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
+
+    console.log("📅 Analytics API - Date range filter:", {
+      startDate,
+      endDate,
+    });
 
     // Check authentication
     const supabase = createRouteHandlerClient({ cookies });
@@ -147,25 +157,43 @@ export async function GET() {
 
     console.log("✅ Analytics API - Authentication successful");
 
+    // Parse date filters
+    const dateFilter: Record<string, Record<string, Date>> = {};
+    if (startDate || endDate) {
+      dateFilter.kycSubmittedAt = {};
+      if (startDate) {
+        dateFilter.kycSubmittedAt.gte = new Date(startDate);
+      }
+      if (endDate) {
+        const endDateObj = new Date(endDate);
+        endDateObj.setHours(23, 59, 59, 999); // Include the entire end date
+        dateFilter.kycSubmittedAt.lte = endDateObj;
+      }
+    }
+
     // Get today's date range for recent activity
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Fetch KYC data with grouping by status
+    // Fetch KYC data with grouping by status (apply date filter)
     const [kycProfilesWithStatus, totalKYCs] = await Promise.all([
       prisma.kYCProfile.groupBy({
         by: ["kycStatus"],
         _count: {
           id: true,
         },
+        where: dateFilter,
       }),
-      prisma.kYCProfile.count(),
+      prisma.kYCProfile.count({
+        where: dateFilter,
+      }),
     ]);
 
-    // Fetch all KYC profiles for detailed analysis
+    // Fetch all KYC profiles for detailed analysis (apply date filter)
     const allKYCProfiles = await prisma.kYCProfile.findMany({
+      where: dateFilter,
       select: {
         id: true,
         bridgeCustomerId: true,

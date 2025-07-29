@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Build where conditions
-    const whereConditions: any = {
+    const whereConditions: Record<string, unknown> = {
       role: "USER", // Only get USER profiles
     };
 
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
 
     // Card status filter (only for SUPERADMINs)
     if (profile.role === "SUPERADMIN" && cardStatus && cardStatus !== "all") {
-      const statusConditions: any = {};
+      const statusConditions: Record<string, unknown> = {};
 
       switch (cardStatus) {
         case "active":
@@ -158,8 +158,8 @@ export async function GET(request: NextRequest) {
         profile.role === "SUPERADMIN"
           ? user.cards.map((card) => ({
               id: card.id,
-              balance: card.balance,
-              availableBalance: card.availableBalance,
+              balance: 'balance' in card ? card.balance : 0,
+              availableBalance: 'availableBalance' in card ? card.availableBalance : 0,
               isActive: card.isActive,
               terminated: card.terminated,
               frozen: card.frozen,
@@ -249,7 +249,7 @@ export async function POST(request: NextRequest) {
     // Check KYC status
     if (
       !targetProfile.kycProfile ||
-      targetProfile.kycProfile.kycStatus !== "approved"
+      targetProfile.kycProfile.kycStatus !== "active"
     ) {
       return NextResponse.json(
         { error: "User must have approved KYC to create cards" },

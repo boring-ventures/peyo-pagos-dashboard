@@ -5,7 +5,7 @@ import { UserRole, ConfigStatus } from "@prisma/client";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { configId: string } }
+  { params }: { params: Promise<{ configId: string }> }
 ) {
   try {
     // Check authentication
@@ -26,7 +26,7 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { configId } = params;
+    const { configId } = await params;
 
     // Get configuration with history
     const config = await prisma.systemConfig.findUnique({
@@ -63,7 +63,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { configId: string } }
+  { params }: { params: Promise<{ configId: string }> }
 ) {
   try {
     // Check authentication
@@ -84,7 +84,7 @@ export async function PUT(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { configId } = params;
+    const { configId } = await params;
     const body = await request.json();
     const { name, description, value, status, category, tags, changeReason } =
       body;
@@ -102,7 +102,7 @@ export async function PUT(
     }
 
     // Prepare update data
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       lastModifiedBy: user.id,
       lastModifiedAt: new Date(),
     };
@@ -162,7 +162,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { configId: string } }
+  { params }: { params: Promise<{ configId: string }> }
 ) {
   try {
     // Check authentication
@@ -180,7 +180,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { configId } = params;
+    const { configId } = await params;
 
     // Get configuration before deletion
     const config = await prisma.systemConfig.findUnique({

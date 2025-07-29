@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Build date filter
-    const dateFilter: any = {};
+    const dateFilter: Record<string, Record<string, Date>> = {};
     if (startDate || endDate) {
       dateFilter.bridgeCreatedAt = {};
       if (startDate) {
@@ -105,35 +105,35 @@ export async function GET(request: NextRequest) {
           },
         }),
 
-              // Source currency breakdown
-      prisma.transaction.groupBy({
-        by: ["sourceCurrency"],
-        where: dateFilter,
-        _count: {
-          sourceCurrency: true,
-        },
-        orderBy: {
+        // Source currency breakdown
+        prisma.transaction.groupBy({
+          by: ["sourceCurrency"],
+          where: dateFilter,
           _count: {
-            sourceCurrency: "desc",
+            sourceCurrency: true,
           },
-        },
-        take: 10,
-      }),
+          orderBy: {
+            _count: {
+              sourceCurrency: "desc",
+            },
+          },
+          take: 10,
+        }),
 
-      // Payment rail breakdown
-      prisma.transaction.groupBy({
-        by: ["sourcePaymentRail"],
-        where: dateFilter,
-        _count: {
-          sourcePaymentRail: true,
-        },
-        orderBy: {
+        // Payment rail breakdown
+        prisma.transaction.groupBy({
+          by: ["sourcePaymentRail"],
+          where: dateFilter,
           _count: {
-            sourcePaymentRail: "desc",
+            sourcePaymentRail: true,
           },
-        },
-        take: 10,
-      }),
+          orderBy: {
+            _count: {
+              sourcePaymentRail: "desc",
+            },
+          },
+          take: 10,
+        }),
       ]);
 
     console.log("✅ Parallel queries completed:", {

@@ -1,5 +1,10 @@
 // Analytics types for platform cost tracking
 
+export interface AnalyticsDateRange {
+  startDate?: string; // YYYY-MM-DD format
+  endDate?: string;   // YYYY-MM-DD format
+}
+
 export interface KYCAnalytics {
   totalKYCs: number;
   kycsByStatus: {

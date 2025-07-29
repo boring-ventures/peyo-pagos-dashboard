@@ -109,10 +109,13 @@ export function FeeConfigsTab() {
         description: "La tarifa se ha creado correctamente.",
       });
       setIsCreateDialogOpen(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message || "No se pudo crear la tarifa.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "No se pudo crear la tarifa.",
         variant: "destructive",
       });
     }
@@ -181,7 +184,7 @@ export function FeeConfigsTab() {
   };
 
   const getFeeStructureBadge = (structure: string) => {
-    const colors = {
+    const colors: Record<string, string> = {
       percentage: "bg-blue-100 text-blue-800",
       fixed_amount: "bg-green-100 text-green-800",
       tiered: "bg-purple-100 text-purple-800",
@@ -216,7 +219,9 @@ export function FeeConfigsTab() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalFees}</div>
+              <div className="text-2xl font-bold">
+                {stats.totalFees as number}
+              </div>
             </CardContent>
           </Card>
           <Card>
@@ -225,7 +230,7 @@ export function FeeConfigsTab() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                {stats.activeFees}
+                {stats.activeFees as number}
               </div>
             </CardContent>
           </Card>
@@ -235,7 +240,7 @@ export function FeeConfigsTab() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-orange-600">
-                {stats.inactiveFees}
+                {stats.inactiveFees as number}
               </div>
             </CardContent>
           </Card>
@@ -247,7 +252,10 @@ export function FeeConfigsTab() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {Object.keys(stats.feesByType).length}
+                {
+                  Object.keys(stats.feesByType as Record<string, unknown>)
+                    .length
+                }
               </div>
             </CardContent>
           </Card>
@@ -269,8 +277,8 @@ export function FeeConfigsTab() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas las categorías</SelectItem>
-              {categories.map((category) => (
-                <SelectItem key={category} value={category}>
+              {categories.filter(Boolean).map((category) => (
+                <SelectItem key={category} value={category!}>
                   {category}
                 </SelectItem>
               ))}
@@ -432,9 +440,14 @@ function CreateFeeForm({
     e.preventDefault();
     const data: CreateFeeConfigRequest = {
       ...formData,
+      feeType: formData.feeType as FeeType, // Cast to FeeType enum
       amount: parseFloat(formData.amount),
-      minAmount: formData.minAmount ? parseFloat(formData.minAmount) : undefined,
-      maxAmount: formData.maxAmount ? parseFloat(formData.maxAmount) : undefined,
+      minAmount: formData.minAmount
+        ? parseFloat(formData.minAmount)
+        : undefined,
+      maxAmount: formData.maxAmount
+        ? parseFloat(formData.maxAmount)
+        : undefined,
     };
     await onSave(data);
   };
@@ -616,11 +629,11 @@ function EditFeeForm({
   const [formData, setFormData] = useState({
     name: fee.name,
     description: fee.description || "",
-    amount: fee.amount,
+    amount: fee.amount.toString(),
     currency: fee.currency,
     feeStructure: fee.feeStructure,
-    minAmount: fee.minAmount || "",
-    maxAmount: fee.maxAmount || "",
+    minAmount: fee.minAmount?.toString() || "",
+    maxAmount: fee.maxAmount?.toString() || "",
     isActive: fee.isActive,
     category: fee.category || "",
     changeReason: "",
@@ -630,9 +643,13 @@ function EditFeeForm({
     e.preventDefault();
     const data = {
       ...formData,
-      minAmount: formData.minAmount ? parseFloat(formData.minAmount) : null,
-      maxAmount: formData.maxAmount ? parseFloat(formData.maxAmount) : null,
-      amount: parseFloat(formData.amount),
+      minAmount: formData.minAmount
+        ? parseFloat(String(formData.minAmount))
+        : undefined,
+      maxAmount: formData.maxAmount
+        ? parseFloat(String(formData.maxAmount))
+        : undefined,
+      amount: parseFloat(String(formData.amount)),
     };
     await onSave(fee.id, data);
   };

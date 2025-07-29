@@ -13,7 +13,7 @@ export interface TransactionWithDetails {
   destinationCurrency: string | null;
   bridgeCreatedAt: string;
   bridgeUpdatedAt: string;
-  bridgeRawData: any | null;
+  bridgeRawData: Record<string, unknown> | null;
   wallet: {
     id: string;
     address: string;

@@ -120,3 +120,97 @@ export interface UserCardFilters {
   page?: number;
   limit?: number;
 }
+
+// Flat card view types
+export interface FlatCardWithDetails {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  profileId: string;
+  moonCardId: string;
+  balance: number;
+  availableBalance: number;
+  expiration: string;
+  displayExpiration: string;
+  cardProductId: string;
+  pan: string;
+  cvv: string;
+  supportToken: string;
+  terminated: boolean;
+  frozen: boolean;
+  isActive: boolean;
+  profile: {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string | null;
+    userTag: string | null;
+    status: string;
+  };
+}
+
+export interface FlatCardFilters {
+  search?: string;
+  cardStatus?: string;
+  isActive?: string;
+  terminated?: string;
+  frozen?: string;
+  startDate?: string;
+  endDate?: string;
+  minBalance?: string;
+  maxBalance?: string;
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+}
+
+export interface FlatCardStats {
+  totalCards: number;
+  activeCards: number;
+  terminatedCards: number;
+  frozenCards: number;
+  recentCards: number;
+  totalBalance: string;
+  totalAvailableBalance: string;
+  uniqueUsers: number;
+  balanceBreakdown: Array<{
+    status: string;
+    count: number;
+    percentage: string;
+  }>;
+}
+
+export interface FlatCardResponse {
+  cards: FlatCardWithDetails[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+}
+
+export interface FlatCardFiltersState {
+  search: string;
+  cardStatus: string;
+  isActive: string;
+  terminated: string;
+  frozen: string;
+  startDate: string;
+  endDate: string;
+  minBalance: string;
+  maxBalance: string;
+}
+
+export const CARD_SORT_OPTIONS = [
+  { value: "createdAt", label: "Date Created" },
+  { value: "updatedAt", label: "Date Updated" },
+  { value: "balance", label: "Balance" },
+  { value: "availableBalance", label: "Available Balance" },
+  { value: "expiration", label: "Expiration Date" },
+] as const;
+
+export const CARD_STATUS_OPTIONS = ["active", "terminated", "frozen"] as const;

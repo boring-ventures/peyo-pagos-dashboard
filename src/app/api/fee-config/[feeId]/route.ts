@@ -5,7 +5,7 @@ import { UserRole } from "@prisma/client";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { feeId: string } }
+  { params }: { params: Promise<{ feeId: string }> }
 ) {
   try {
     // Check authentication
@@ -26,7 +26,7 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { feeId } = params;
+    const { feeId } = await params;
 
     // Get fee configuration with history
     const fee = await prisma.feeConfig.findUnique({
@@ -63,7 +63,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { feeId: string } }
+  { params }: { params: Promise<{ feeId: string }> }
 ) {
   try {
     // Check authentication
@@ -84,7 +84,7 @@ export async function PUT(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { feeId } = params;
+    const { feeId } = await params;
     const body = await request.json();
     const {
       name,
@@ -115,7 +115,7 @@ export async function PUT(
     }
 
     // Prepare update data
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       lastModifiedBy: user.id,
       lastModifiedAt: new Date(),
     };
@@ -186,7 +186,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { feeId: string } }
+  { params }: { params: Promise<{ feeId: string }> }
 ) {
   try {
     // Check authentication
@@ -204,7 +204,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { feeId } = params;
+    const { feeId } = await params;
 
     // Get fee configuration before deletion
     const fee = await prisma.feeConfig.findUnique({

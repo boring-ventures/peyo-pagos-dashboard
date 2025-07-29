@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status");
 
     // Build where clause
-    const where: any = {};
+    const where: Record<string, unknown> = {};
     if (category) where.category = category;
     if (type) where.type = type;
     if (status) where.status = status;

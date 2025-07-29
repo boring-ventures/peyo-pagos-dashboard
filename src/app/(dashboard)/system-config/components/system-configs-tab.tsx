@@ -97,7 +97,7 @@ export function SystemConfigsTab() {
 
   // Get unique categories and types for filters
   const categories = [
-    ...new Set(configs.map((config) => config.category).filter(Boolean)),
+    ...new Set(configs.map((config) => config.category).filter((category): category is string => Boolean(category))),
   ];
   const types = Object.values(ConfigType);
 
@@ -109,10 +109,12 @@ export function SystemConfigsTab() {
         description: "La configuración se ha creado correctamente.",
       });
       setIsCreateDialogOpen(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message || "No se pudo crear la configuración.",
+        description: error instanceof Error 
+          ? error.message 
+          : "No se pudo crear la configuración.",
         variant: "destructive",
       });
     }
@@ -160,7 +162,7 @@ export function SystemConfigsTab() {
   };
 
   const getStatusBadge = (status: ConfigStatus) => {
-    const variants = {
+    const variants: Record<ConfigStatus, "default" | "secondary" | "destructive"> = {
       active: "default",
       inactive: "secondary",
       deprecated: "destructive",
@@ -410,10 +412,13 @@ function CreateConfigForm({
         type: formData.type as ConfigType,
         category: formData.category,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error al crear configuración",
-        description: error.message || "El valor no es un JSON válido.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "El valor no es un JSON válido.",
         variant: "destructive",
       });
     }

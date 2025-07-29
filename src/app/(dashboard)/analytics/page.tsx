@@ -1,9 +1,11 @@
 "use client";
 
+import { useState, useCallback } from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { AnalyticsStats } from "./components/analytics-stats";
 import { CostBreakdownChart } from "./components/cost-breakdown-chart";
+import { AnalyticsDateFilter } from "./components/analytics-date-filter";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,14 +20,31 @@ import { canAccessModule } from "@/lib/auth/role-permissions";
 
 export default function AnalyticsPage() {
   const { profile } = useAuth();
-  const { data, isLoading, error, refetch, isFetching } = useAnalytics();
+  const [dateRange, setDateRange] = useState<{
+    startDate?: string;
+    endDate?: string;
+  }>({});
+
+  const { data, isLoading, error, refetch, isFetching } =
+    useAnalytics(dateRange);
 
   const handleRefresh = async () => {
     await refetch();
   };
 
+  const handleDateChange = useCallback(
+    (dates: { startDate?: string; endDate?: string }) => {
+      setDateRange(dates);
+    },
+    []
+  );
+
+  const handleClearDateFilter = useCallback(() => {
+    setDateRange({});
+  }, []);
+
   // Check if user has access to analytics (only SUPERADMIN)
-  if (!profile || !canAccessModule(profile.role, 'analytics')) {
+  if (!profile || !canAccessModule(profile.role, "analytics")) {
     return (
       <div className="container mx-auto py-10">
         <Card className="max-w-md mx-auto">
@@ -33,8 +52,8 @@ export default function AnalyticsPage() {
             <Shield className="mx-auto h-12 w-12 text-red-500 mb-4" />
             <CardTitle className="text-xl">Access Denied</CardTitle>
             <CardDescription>
-              You don&apos;t have permission to access this module. Only
-              super administrators can view platform analytics.
+              You don&apos;t have permission to access this module. Only super
+              administrators can view platform analytics.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -96,6 +115,14 @@ export default function AnalyticsPage() {
           </AlertDescription>
         </Alert>
       )}
+
+      {/* Date Range Filter */}
+      <AnalyticsDateFilter
+        startDate={dateRange.startDate}
+        endDate={dateRange.endDate}
+        onDateChange={handleDateChange}
+        onClear={handleClearDateFilter}
+      />
 
       {/* Cost Information */}
       <Card>

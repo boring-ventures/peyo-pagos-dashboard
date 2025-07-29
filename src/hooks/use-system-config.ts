@@ -6,6 +6,9 @@ import {
   UpdateSystemConfigRequest,
   CreateFeeConfigRequest,
   UpdateFeeConfigRequest,
+  ConfigValue,
+  SystemConfigStats,
+  FeeConfigStats,
 } from "@/types/system-config";
 
 // System Configuration Queries
@@ -25,7 +28,7 @@ export const useSystemConfigs = (params?: {
     queryKey: ["system-configs", params],
     queryFn: async (): Promise<{
       configs: SystemConfig[];
-      stats?: any;
+      stats?: SystemConfigStats;
       total: number;
     }> => {
       const response = await fetch(
@@ -148,7 +151,7 @@ export const useFeeConfigs = (params?: {
     queryKey: ["fee-configs", params],
     queryFn: async (): Promise<{
       fees: FeeConfig[];
-      stats?: any;
+      stats?: FeeConfigStats;
       total: number;
     }> => {
       const response = await fetch(`/api/fee-config?${queryParams.toString()}`);
@@ -253,7 +256,7 @@ export const useDeleteFeeConfig = () => {
 export const useSystemConfigValue = (key: string) => {
   return useQuery({
     queryKey: ["system-config-value", key],
-    queryFn: async (): Promise<any> => {
+    queryFn: async (): Promise<ConfigValue> => {
       const response = await fetch(`/api/system-config?key=${key}`);
       if (!response.ok) {
         throw new Error("Failed to fetch system configuration value");

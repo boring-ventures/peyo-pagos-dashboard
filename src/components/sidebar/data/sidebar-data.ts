@@ -7,6 +7,7 @@ import {
   BarChart3,
   Settings,
   Activity,
+  Receipt,
 } from "lucide-react";
 import type { SidebarData } from "../types";
 import type { UserRole } from "@prisma/client";
@@ -78,6 +79,17 @@ export const getSidebarData = (userRole?: UserRole | null): SidebarData => {
     });
   }
 
+  // Create billing items if user has analytics access
+  const billingItems = [];
+  if (canAccessModule(userRole, "analytics")) {
+    billingItems.push({
+      title: "Órdenes de Compra",
+      url: "/purchase-orders",
+      icon: Receipt,
+      isPlaceholder: true, // Will be implemented when we have a profile list
+    });
+  }
+
   return {
     user: {
       name: "satnaing",
@@ -107,6 +119,14 @@ export const getSidebarData = (userRole?: UserRole | null): SidebarData => {
             {
               title: "Administración",
               items: adminItems,
+            },
+          ]
+        : []),
+      ...(billingItems.length > 0
+        ? [
+            {
+              title: "Facturación",
+              items: billingItems,
             },
           ]
         : []),

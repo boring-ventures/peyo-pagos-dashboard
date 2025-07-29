@@ -72,7 +72,7 @@ export async function GET(
     }
 
     // Build where conditions for cards
-    const whereConditions: any = {
+    const whereConditions: Record<string, unknown> = {
       profileId: targetUser.id,
     };
 
@@ -229,7 +229,7 @@ export async function POST(
     // Check KYC status
     if (
       !targetProfile.kycProfile ||
-      targetProfile.kycProfile.kycStatus !== "approved"
+      targetProfile.kycProfile.kycStatus !== "active"
     ) {
       return NextResponse.json(
         { error: "User must have approved KYC to create cards" },

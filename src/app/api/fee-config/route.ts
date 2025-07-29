@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     const isActive = searchParams.get("isActive");
 
     // Build where clause
-    const where: any = {};
+    const where: Record<string, unknown> = {};
     if (category) where.category = category;
     if (feeType) where.feeType = feeType;
     if (isActive !== null) where.isActive = isActive === "true";

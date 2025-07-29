@@ -1,5 +1,15 @@
 import { ConfigType, ConfigStatus, FeeType } from "@prisma/client";
 
+// Define possible configuration value types
+export type ConfigValue =
+  | string
+  | number
+  | boolean
+  | string[]
+  | number[]
+  | Record<string, unknown>
+  | null;
+
 // System Configuration Types
 export interface SystemConfig {
   id: string;
@@ -10,11 +20,11 @@ export interface SystemConfig {
   description?: string;
   type: ConfigType;
   status: ConfigStatus;
-  value: any;
-  defaultValue?: any;
-  minValue?: any;
-  maxValue?: any;
-  allowedValues?: any;
+  value: ConfigValue;
+  defaultValue?: ConfigValue;
+  minValue?: ConfigValue;
+  maxValue?: ConfigValue;
+  allowedValues?: ConfigValue[];
   validationRule?: string;
   category?: string;
   tags: string[];
@@ -26,8 +36,8 @@ export interface SystemConfigHistory {
   id: string;
   createdAt: Date;
   configId: string;
-  oldValue?: any;
-  newValue: any;
+  oldValue?: ConfigValue;
+  newValue: ConfigValue;
   changeReason?: string;
   modifiedBy: string;
   modifiedAt: Date;
@@ -74,11 +84,11 @@ export interface CreateSystemConfigRequest {
   name: string;
   description?: string;
   type: ConfigType;
-  value: any;
-  defaultValue?: any;
-  minValue?: any;
-  maxValue?: any;
-  allowedValues?: any;
+  value: ConfigValue;
+  defaultValue?: ConfigValue;
+  minValue?: ConfigValue;
+  maxValue?: ConfigValue;
+  allowedValues?: ConfigValue[];
   validationRule?: string;
   category?: string;
   tags?: string[];
@@ -87,7 +97,7 @@ export interface CreateSystemConfigRequest {
 export interface UpdateSystemConfigRequest {
   name?: string;
   description?: string;
-  value?: any;
+  value?: ConfigValue;
   status?: ConfigStatus;
   category?: string;
   tags?: string[];
@@ -143,9 +153,9 @@ export interface FeeConfigStats {
   totalRevenue: number;
 }
 
-// Utility Types
-export interface ConfigValue {
-  [key: string]: any;
+// Utility Types for backwards compatibility
+export interface ConfigValueMap {
+  [key: string]: ConfigValue;
 }
 
 export interface FeeCalculation {

@@ -34,7 +34,6 @@ import {
   AlertCircle,
   ArrowUpDown,
   CalendarDays,
-  ChevronDown,
   CreditCard,
   Eye,
   MoreHorizontal,
@@ -102,6 +101,10 @@ export function CardDataTable({
   };
 
   const getCardStatusCounts = (user: UserWithCards) => {
+    if (!user.cards) {
+      return { active: 0, frozen: 0, terminated: 0, inactive: 0 };
+    }
+
     const active = user.cards.filter(
       (card) => card.isActive && !card.terminated && !card.frozen
     ).length;
@@ -115,6 +118,7 @@ export function CardDataTable({
   };
 
   const getTotalBalance = (user: UserWithCards) => {
+    if (!user.cards) return 0;
     return user.cards.reduce((sum, card) => sum + card.balance, 0);
   };
 
@@ -168,7 +172,7 @@ export function CardDataTable({
       cell: ({ row }) => {
         const user = row.original;
         const statusCounts = getCardStatusCounts(user);
-        const totalCards = user.cards.length;
+        const totalCards = user.cards?.length || 0;
 
         return (
           <div className="space-y-2">
@@ -456,13 +460,12 @@ export function CardDataTable({
       </div>
 
       {/* Pagination */}
-      {data && data.pagination.totalPages > 1 && (
+      {data && Math.ceil(data.total / data.limit) > 1 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
             Mostrando {(currentPage - 1) * 10 + 1} a{" "}
-            {Math.min(currentPage * 10, data.pagination.total)} de{" "}
-            {data.pagination.total} usuario
-            {data.pagination.total !== 1 ? "s" : ""}
+            {Math.min(currentPage * 10, data.total)} de {data.total} usuario
+            {data.total !== 1 ? "s" : ""}
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -475,7 +478,7 @@ export function CardDataTable({
             </Button>
             <div className="flex items-center gap-1">
               {Array.from(
-                { length: data.pagination.totalPages },
+                { length: Math.ceil(data.total / data.limit) },
                 (_, i) => i + 1
               )
                 .filter((page) => {
@@ -483,7 +486,7 @@ export function CardDataTable({
                   return (
                     distance <= 2 ||
                     page === 1 ||
-                    page === data.pagination.totalPages
+                    page === Math.ceil(data.total / data.limit)
                   );
                 })
                 .map((page, index, filteredPages) => {
@@ -511,7 +514,7 @@ export function CardDataTable({
               variant="outline"
               size="sm"
               onClick={() => onPageChange(currentPage + 1)}
-              disabled={currentPage >= data.pagination.totalPages}
+              disabled={currentPage >= Math.ceil(data.total / data.limit)}
             >
               Siguiente
             </Button>
