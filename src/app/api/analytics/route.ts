@@ -7,6 +7,7 @@ import type {
   PlatformAnalytics,
   KYCAnalytics,
   WalletAnalytics,
+  CostEntry,
 } from "@/types/analytics";
 import { COSTS } from "@/types/analytics";
 
@@ -62,6 +63,98 @@ async function getWalletCounts(customerIds: string[]): Promise<number> {
   return totalWallets;
 }
 
+// Helper function to generate cost entries
+async function generateCostEntries(
+  kycProfiles: {
+    id: string;
+    bridgeCustomerId: string | null;
+    kycStatus: string;
+    kycSubmittedAt: Date | null;
+    kycApprovedAt: Date | null;
+    createdAt: Date;
+    profile: {
+      id: string;
+      userId: string;
+      email: string | null;
+      firstName: string | null;
+      lastName: string | null;
+    };
+  }[],
+  dateFilter: Record<string, { gte?: Date; lte?: Date }>
+): Promise<CostEntry[]> {
+  const costEntries: CostEntry[] = [];
+
+  // Add KYC cost entries
+  kycProfiles.forEach((kycProfile) => {
+    if (kycProfile.kycSubmittedAt) {
+      costEntries.push({
+        id: `kyc-${kycProfile.id}`,
+        type: "kyc",
+        userId: kycProfile.profile.userId,
+        userEmail: kycProfile.profile.email || "",
+        userName: `${kycProfile.profile.firstName || ""} ${
+          kycProfile.profile.lastName || ""
+        }`.trim(),
+        profileId: kycProfile.profile.id,
+        description: `KYC verification for ${kycProfile.profile.email}`,
+        amount: COSTS.KYC_COST_USD,
+        currency: "USD",
+        createdAt: kycProfile.kycSubmittedAt.toISOString(),
+        metadata: {
+          kycStatus: kycProfile.kycStatus,
+          bridgeCustomerId: kycProfile.bridgeCustomerId || undefined,
+        },
+      });
+    }
+  });
+
+  // Add wallet cost entries
+  const wallets = await prisma.wallet.findMany({
+    where: dateFilter,
+    include: {
+      profile: {
+        select: {
+          id: true,
+          userId: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  wallets.forEach((wallet) => {
+    costEntries.push({
+      id: `wallet-${wallet.id}`,
+      type: "wallet",
+      userId: wallet.profile.userId,
+      userEmail: wallet.profile.email || "",
+      userName: `${wallet.profile.firstName || ""} ${
+        wallet.profile.lastName || ""
+      }`.trim(),
+      profileId: wallet.profile.id,
+      description: `${wallet.chain} wallet creation for ${wallet.profile.email}`,
+      amount: COSTS.WALLET_COST_USD,
+      currency: "USD",
+      createdAt: wallet.createdAt.toISOString(),
+      metadata: {
+        walletChain: wallet.chain,
+        walletAddress: wallet.address,
+        bridgeWalletId: wallet.bridgeWalletId,
+      },
+    });
+  });
+
+  // Sort by creation date (newest first)
+  costEntries.sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+
+  return costEntries;
+}
+
 // Helper function to get monthly breakdown
 function getMonthlyBreakdown(
   kycProfiles: {
@@ -71,6 +164,13 @@ function getMonthlyBreakdown(
     kycSubmittedAt: Date | null;
     kycApprovedAt: Date | null;
     createdAt: Date;
+    profile: {
+      id: string;
+      userId: string;
+      email: string | null;
+      firstName: string | null;
+      lastName: string | null;
+    };
   }[]
 ): PlatformAnalytics["monthlyBreakdown"] {
   const monthlyData: { [key: string]: { kycs: number; wallets: number } } = {};
@@ -201,6 +301,15 @@ export async function GET(request: Request) {
         kycSubmittedAt: true,
         kycApprovedAt: true,
         createdAt: true,
+        profile: {
+          select: {
+            id: true,
+            userId: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
       },
     });
 
@@ -264,12 +373,16 @@ export async function GET(request: Request) {
         profile.kycSubmittedAt < tomorrow
     ).length;
 
+    // Generate cost entries
+    const costEntries = await generateCostEntries(allKYCProfiles, dateFilter);
+
     // Build complete analytics
     const analytics: PlatformAnalytics = {
       kyc: kycAnalytics,
       wallets: walletAnalytics,
       totalPlatformCost:
         kycAnalytics.totalKYCCost + walletAnalytics.totalWalletCost,
+      costEntries: costEntries.slice(0, 100), // Limit to most recent 100 entries for performance
       monthlyBreakdown: getMonthlyBreakdown(allKYCProfiles),
       recentActivity: {
         newKYCsToday,

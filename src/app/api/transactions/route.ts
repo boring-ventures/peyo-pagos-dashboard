@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   try {
@@ -117,25 +118,28 @@ export async function GET(request: NextRequest) {
 
     // Date range filter
     if (startDate || endDate) {
-      where.bridgeCreatedAt = {};
+      const dateFilter: Prisma.DateTimeFilter = {};
       if (startDate) {
-        where.bridgeCreatedAt.gte = new Date(startDate);
+        dateFilter.gte = new Date(startDate);
       }
       if (endDate) {
-        where.bridgeCreatedAt.lte = new Date(endDate);
+        dateFilter.lte = new Date(endDate);
       }
+      where.bridgeCreatedAt = dateFilter;
     }
 
     // Amount range filter (convert to number for comparison)
     if (minAmount || maxAmount) {
       // Since amount is stored as string, we need to handle this carefully
       // For now, we'll do a simple string comparison, but this might need refinement
+      const amountFilter: Prisma.StringFilter = {};
       if (minAmount) {
-        where.amount = { ...where.amount, gte: minAmount };
+        amountFilter.gte = minAmount;
       }
       if (maxAmount) {
-        where.amount = { ...where.amount, lte: maxAmount };
+        amountFilter.lte = maxAmount;
       }
+      where.amount = amountFilter;
     }
 
     // Build orderBy clause

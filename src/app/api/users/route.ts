@@ -32,7 +32,11 @@ export async function GET(req: NextRequest) {
 
     console.log("👤 Users API - Current user profile:", currentUserProfile);
 
-    if (!currentUserProfile || (currentUserProfile.role !== "SUPERADMIN" && currentUserProfile.role !== "ADMIN")) {
+    if (
+      !currentUserProfile ||
+      (currentUserProfile.role !== "SUPERADMIN" &&
+        currentUserProfile.role !== "ADMIN")
+    ) {
       console.log(
         "❌ Users API - Authorization failed. User role:",
         currentUserProfile?.role
@@ -50,6 +54,7 @@ export async function GET(req: NextRequest) {
     const role = searchParams.get("role");
     const status = searchParams.get("status");
     const search = searchParams.get("search");
+    const userTag = searchParams.get("userTag");
     const sortBy = searchParams.get("sortBy") || "createdAt";
     const sortOrder = searchParams.get("sortOrder") || "desc";
 
@@ -58,6 +63,9 @@ export async function GET(req: NextRequest) {
 
     if (role && role !== "all") whereClause.role = role as UserRole;
     if (status && status !== "all") whereClause.status = status as UserStatus;
+    if (userTag) {
+      whereClause.userTag = { contains: userTag, mode: "insensitive" };
+    }
     if (search) {
       whereClause.OR = [
         { firstName: { contains: search, mode: "insensitive" } },
@@ -78,6 +86,7 @@ export async function GET(req: NextRequest) {
       "email",
       "role",
       "status",
+      "userTag",
     ];
     const safeSortBy = validSortFields.includes(sortBy) ? sortBy : "createdAt";
 
@@ -91,6 +100,7 @@ export async function GET(req: NextRequest) {
       role,
       status,
       search,
+      userTag,
       sortBy,
       sortOrder,
     });
@@ -238,7 +248,11 @@ export async function POST(req: NextRequest) {
       where: { userId: session.user.id },
     });
 
-    if (!currentUserProfile || (currentUserProfile.role !== "SUPERADMIN" && currentUserProfile.role !== "ADMIN")) {
+    if (
+      !currentUserProfile ||
+      (currentUserProfile.role !== "SUPERADMIN" &&
+        currentUserProfile.role !== "ADMIN")
+    ) {
       return NextResponse.json(
         { error: "Unauthorized - Admin access required" },
         { status: 403 }

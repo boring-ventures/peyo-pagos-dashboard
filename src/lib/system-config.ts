@@ -1,5 +1,5 @@
-import { FeeType, ConfigStatus } from "@prisma/client";
-import { FeeCalculation, ConfigValue } from "@/types/system-config";
+import { FeeType, ConfigStatus, Prisma } from "@prisma/client";
+import { FeeCalculation, ConfigValue, FeeConfig } from "@/types/system-config";
 import prisma from "@/lib/prisma";
 
 // Cache for system configurations to avoid repeated database calls
@@ -29,11 +29,11 @@ export async function getSystemConfig(key: string): Promise<ConfigValue> {
 
   // Cache the result
   configCache.set(key, {
-    value: config.value,
+    value: config.value as ConfigValue,
     timestamp: Date.now(),
   });
 
-  return config.value;
+  return config.value as ConfigValue;
 }
 
 /**
@@ -52,7 +52,7 @@ export async function getSystemConfigs(
   const result: Record<string, ConfigValue> = {};
 
   for (const config of configs) {
-    result[config.key] = config.value;
+    result[config.key] = config.value as ConfigValue;
   }
 
   return result;
@@ -76,14 +76,19 @@ export async function updateSystemConfig(
   }
 
   // Validate the new value
-  await validateConfigValue(config, value);
+  await validateConfigValue({
+    minValue: config.minValue as ConfigValue,
+    maxValue: config.maxValue as ConfigValue,
+    allowedValues: config.allowedValues as ConfigValue[],
+    validationRule: config.validationRule || undefined,
+  }, value);
 
   // Create history record
   await prisma.systemConfigHistory.create({
     data: {
       configId: config.id,
-      oldValue: config.value,
-      newValue: value,
+      oldValue: config.value as Prisma.InputJsonValue,
+      newValue: value as Prisma.InputJsonValue,
       changeReason,
       modifiedBy,
     },
@@ -93,7 +98,7 @@ export async function updateSystemConfig(
   await prisma.systemConfig.update({
     where: { key },
     data: {
-      value,
+      value: value as Prisma.InputJsonValue,
       lastModifiedBy: modifiedBy,
       lastModifiedAt: new Date(),
     },
@@ -117,10 +122,10 @@ async function validateConfigValue(
 ): Promise<void> {
   // Check min/max values for numeric configs
   if (typeof value === "number") {
-    if (config.minValue !== null && value < config.minValue) {
+    if (config.minValue !== null && typeof config.minValue === "number" && value < config.minValue) {
       throw new Error(`Value ${value} is below minimum ${config.minValue}`);
     }
-    if (config.maxValue !== null && value > config.maxValue) {
+    if (config.maxValue !== null && typeof config.maxValue === "number" && value > config.maxValue) {
       throw new Error(`Value ${value} is above maximum ${config.maxValue}`);
     }
   }
@@ -146,15 +151,7 @@ async function validateConfigValue(
 /**
  * Get fee configuration by type
  */
-export async function getFeeConfig(feeType: FeeType): Promise<{
-  id: string;
-  feeType: FeeType;
-  amount: number;
-  feeStructure: string;
-  minAmount?: number;
-  maxAmount?: number;
-  isActive: boolean;
-} | null> {
+export async function getFeeConfig(feeType: FeeType): Promise<FeeConfig | null> {
   const feeConfig = await prisma.feeConfig.findFirst({
     where: {
       feeType,
@@ -162,7 +159,26 @@ export async function getFeeConfig(feeType: FeeType): Promise<{
     },
   });
 
-  return feeConfig;
+  return feeConfig ? {
+    id: feeConfig.id,
+    name: feeConfig.name,
+    feeType: feeConfig.feeType,
+    description: feeConfig.description || undefined,
+    amount: Number(feeConfig.amount),
+    currency: feeConfig.currency,
+    feeStructure: feeConfig.feeStructure,
+    minAmount: feeConfig.minAmount ? Number(feeConfig.minAmount) : undefined,
+    maxAmount: feeConfig.maxAmount ? Number(feeConfig.maxAmount) : undefined,
+    isActive: feeConfig.isActive,
+    appliesTo: feeConfig.appliesTo,
+    excludedFrom: feeConfig.excludedFrom,
+    category: feeConfig.category || undefined,
+    tags: feeConfig.tags,
+    lastModifiedBy: feeConfig.lastModifiedBy || undefined,
+    lastModifiedAt: feeConfig.lastModifiedAt || undefined,
+    createdAt: feeConfig.createdAt,
+    updatedAt: feeConfig.updatedAt,
+  } : null;
 }
 
 /**
@@ -276,10 +292,20 @@ export async function getAllFeeConfigs(): Promise<
     isActive: boolean;
   }[]
 > {
-  return prisma.feeConfig.findMany({
+  const configs = await prisma.feeConfig.findMany({
     where: { isActive: true },
     orderBy: { feeType: "asc" },
   });
+
+  return configs.map(config => ({
+    id: config.id,
+    feeType: config.feeType,
+    name: config.name,
+    amount: Number(config.amount),
+    currency: config.currency,
+    feeStructure: config.feeStructure,
+    isActive: config.isActive,
+  }));
 }
 
 /**
@@ -295,10 +321,19 @@ export async function getAllSystemConfigs(): Promise<
     category?: string;
   }[]
 > {
-  return prisma.systemConfig.findMany({
+  const configs = await prisma.systemConfig.findMany({
     where: { status: ConfigStatus.active },
     orderBy: { category: "asc", name: "asc" },
   });
+
+  return configs.map(config => ({
+    id: config.id,
+    key: config.key,
+    name: config.name,
+    type: config.type,
+    value: config.value as ConfigValue,
+    category: config.category || undefined,
+  }));
 }
 
 /**
@@ -361,6 +396,8 @@ export async function getFeeConfigStats(): Promise<{
   activeFees: number;
   inactiveFees: number;
   feesByType: Record<string, number>;
+  feesByCategory: Record<string, number>;
+  totalRevenue: number;
 }> {
   const [totalFees, activeFees, inactiveFees] = await Promise.all([
     prisma.feeConfig.count(),

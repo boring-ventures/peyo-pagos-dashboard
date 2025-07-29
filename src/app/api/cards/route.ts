@@ -106,36 +106,24 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Get users with different data based on role
+    // Get users with cards (always select all fields to avoid union types)
     const users = await prisma.profile.findMany({
       where: whereConditions,
       skip,
       take: limit,
       orderBy: { createdAt: "desc" },
       include: {
-        cards:
-          profile.role === "SUPERADMIN"
-            ? {
-                select: {
-                  id: true,
-                  balance: true,
-                  availableBalance: true,
-                  isActive: true,
-                  terminated: true,
-                  frozen: true,
-                  createdAt: true,
-                },
-              }
-            : {
-                select: {
-                  id: true,
-                  isActive: true,
-                  terminated: true,
-                  frozen: true,
-                  createdAt: true,
-                  // Exclude sensitive financial data for ADMINs
-                },
-              },
+        cards: {
+          select: {
+            id: true,
+            balance: true,
+            availableBalance: true,
+            isActive: true,
+            terminated: true,
+            frozen: true,
+            createdAt: true,
+          },
+        },
       },
     });
 
@@ -154,26 +142,15 @@ export async function GET(request: NextRequest) {
       status: user.status,
       role: user.role,
       createdAt: user.createdAt,
-      cards:
-        profile.role === "SUPERADMIN"
-          ? user.cards.map((card) => ({
-              id: card.id,
-              balance: 'balance' in card ? card.balance : 0,
-              availableBalance: 'availableBalance' in card ? card.availableBalance : 0,
-              isActive: card.isActive,
-              terminated: card.terminated,
-              frozen: card.frozen,
-              createdAt: card.createdAt,
-            }))
-          : user.cards.map((card) => ({
-              id: card.id,
-              balance: 0, // Hidden for ADMINs
-              availableBalance: 0, // Hidden for ADMINs
-              isActive: card.isActive,
-              terminated: card.terminated,
-              frozen: card.frozen,
-              createdAt: card.createdAt,
-            })),
+      cards: user.cards.map((card) => ({
+        id: card.id,
+        balance: profile.role === "SUPERADMIN" ? Number(card.balance) : 0,
+        availableBalance: profile.role === "SUPERADMIN" ? Number(card.availableBalance) : 0,
+        isActive: card.isActive,
+        terminated: card.terminated,
+        frozen: card.frozen,
+        createdAt: card.createdAt,
+      })),
     }));
 
     const totalPages = Math.ceil(total / limit);
@@ -252,7 +229,7 @@ export async function POST(request: NextRequest) {
       targetProfile.kycProfile.kycStatus !== "active"
     ) {
       return NextResponse.json(
-        { error: "User must have approved KYC to create cards" },
+        { error: "User must have active KYC to create cards" },
         { status: 400 }
       );
     }

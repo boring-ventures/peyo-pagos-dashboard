@@ -117,7 +117,7 @@ export async function POST(
             lastName: true,
             email: true,
             phone: true,
-            fullAddress: true,
+            address: true,
             createdAt: true,
           },
         },
@@ -172,7 +172,7 @@ export async function POST(
           serviceDate: kyc.kycSubmittedAt.toISOString().split("T")[0],
           metadata: {
             kycProfileId: kyc.id,
-            bridgeCustomerId: kyc.bridgeCustomerId,
+            bridgeCustomerId: kyc.bridgeCustomerId || undefined,
             kycStatus: kyc.kycStatus,
           },
         });
@@ -230,14 +230,14 @@ export async function POST(
         ? `${targetProfile.kycProfile.firstName || ""} ${targetProfile.kycProfile.lastName || ""}`.trim()
         : targetProfile.email || "Unknown User",
       email: targetProfile.kycProfile?.email || targetProfile.email || "",
-      phone: targetProfile.kycProfile?.phoneNumber || undefined,
-      address: targetProfile.kycProfile?.fullAddress
+      phone: targetProfile.kycProfile?.phone || undefined,
+      address: targetProfile.kycProfile?.address
         ? {
-            street: targetProfile.kycProfile.fullAddress,
-            city: "N/A",
-            state: "N/A",
-            zipCode: "N/A",
-            country: "N/A",
+            street: targetProfile.kycProfile.address.streetLine1,
+            city: targetProfile.kycProfile.address.city,
+            state: targetProfile.kycProfile.address.subdivision || "N/A",
+            zipCode: targetProfile.kycProfile.address.postalCode || "N/A",
+            country: targetProfile.kycProfile.address.country,
           }
         : undefined,
       ...billTo, // Allow overrides from request

@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { AnalyticsStats } from "./components/analytics-stats";
-import { CostBreakdownChart } from "./components/cost-breakdown-chart";
+import { CostEntriesTable } from "./components/cost-entries-table";
 import { AnalyticsDateFilter } from "./components/analytics-date-filter";
 import { Button } from "@/components/ui/button";
 import {
@@ -151,8 +151,8 @@ export default function AnalyticsPage() {
       {/* Analytics Stats */}
       <AnalyticsStats analytics={analytics} isLoading={isLoading} />
 
-      {/* Monthly Breakdown Chart */}
-      <CostBreakdownChart analytics={analytics} isLoading={isLoading} />
+      {/* Individual Cost Entries Table */}
+      <CostEntriesTable dateRange={dateRange} />
 
       {/* Additional Insights */}
       {analytics && !isLoading && (

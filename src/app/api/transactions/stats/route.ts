@@ -234,9 +234,9 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("❌ Error fetching transaction stats:", error);
     console.error("Error details:", {
-      name: error?.name,
-      message: error?.message,
-      stack: error?.stack,
+      name: (error as Error)?.name,
+      message: (error as Error)?.message,
+      stack: (error as Error)?.stack,
     });
     return NextResponse.json(
       { error: "Internal server error" },

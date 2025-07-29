@@ -42,6 +42,7 @@ export function UserFilters({ filters, onFiltersChange }: UserFiltersProps) {
       role: "all",
       status: "all",
       search: "",
+      userTag: "",
     });
   };
 
@@ -71,7 +72,7 @@ export function UserFilters({ filters, onFiltersChange }: UserFiltersProps) {
       </form>
 
       {/* Filter Controls */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Role Filter */}
         <div className="space-y-2">
           <Label htmlFor="role-filter">Rol</Label>
@@ -112,6 +113,17 @@ export function UserFilters({ filters, onFiltersChange }: UserFiltersProps) {
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        {/* User Tag Filter */}
+        <div className="space-y-2">
+          <Label htmlFor="usertag-filter">User Tag</Label>
+          <Input
+            id="usertag-filter"
+            placeholder="Filtrar por user tag..."
+            value={filters.userTag}
+            onChange={(e) => handleFilterChange("userTag", e.target.value)}
+          />
         </div>
 
         {/* Clear Filters */}
@@ -176,6 +188,17 @@ export function UserFilters({ filters, onFiltersChange }: UserFiltersProps) {
                     setSearchInput("");
                     handleFilterChange("search", "");
                   }}
+                  className="ml-1 hover:text-red-600"
+                >
+                  ×
+                </button>
+              </Badge>
+            )}
+            {filters.userTag && (
+              <Badge variant="secondary" className="text-xs">
+                User Tag: &quot;{filters.userTag}&quot;
+                <button
+                  onClick={() => handleFilterChange("userTag", "")}
                   className="ml-1 hover:text-red-600"
                 >
                   ×

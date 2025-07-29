@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { UserRole, ConfigStatus } from "@prisma/client";
+import { UserRole, ConfigStatus, Prisma } from "@prisma/client";
 
 export async function GET(
   request: NextRequest,
@@ -119,8 +119,8 @@ export async function PUT(
       await prisma.systemConfigHistory.create({
         data: {
           configId,
-          oldValue: currentConfig.value,
-          newValue: value,
+          oldValue: currentConfig.value as Prisma.InputJsonValue,
+          newValue: value as Prisma.InputJsonValue,
           changeReason,
           modifiedBy: user.id,
         },

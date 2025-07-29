@@ -33,10 +33,31 @@ export interface WalletAnalytics {
   };
 }
 
+export interface CostEntry {
+  id: string;
+  type: 'kyc' | 'wallet';
+  userId: string;
+  userEmail: string;
+  userName: string;
+  profileId: string;
+  description: string;
+  amount: number;
+  currency: 'USD';
+  createdAt: string;
+  metadata: {
+    kycStatus?: string;
+    bridgeCustomerId?: string;
+    walletChain?: string;
+    walletAddress?: string;
+    bridgeWalletId?: string;
+  };
+}
+
 export interface PlatformAnalytics {
   kyc: KYCAnalytics;
   wallets: WalletAnalytics;
   totalPlatformCost: number; // Combined KYC + Wallet costs
+  costEntries: CostEntry[]; // Individual cost entries for the table
   monthlyBreakdown: {
     month: string;
     kycCosts: number;
@@ -53,6 +74,27 @@ export interface PlatformAnalytics {
 export interface AnalyticsApiResponse {
   analytics: PlatformAnalytics;
   lastUpdated: string;
+}
+
+export interface CostEntryDetail {
+  id: string;
+  type: 'kyc' | 'wallet';
+  userId: string;
+  userEmail: string;
+  userName: string;
+  profileId: string;
+  description: string;
+  amount: number;
+  currency: 'USD';
+  createdAt: string;
+  metadata: {
+    kycStatus?: string;
+    bridgeCustomerId?: string;
+    walletChain?: string;
+    walletAddress?: string;
+    bridgeWalletId?: string;
+  };
+  relatedEntries?: CostEntry[]; // Related costs for the same user
 }
 
 // Cost constants

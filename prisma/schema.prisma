@@ -750,3 +750,87 @@ model FeeConfigHistory {
   @@map("fee_config_history")
 }
 
+// ===========================================
+// CRYPTO DEPOSITS CONFIGURATION MODELS
+// ===========================================
+//
+// Purpose: Manage crypto deposit configurations for the mobile app
+// including supported chains, tokens, and deposit instructions.
+//
+// Access: Only SUPERADMIN role can modify these settings
+//
+// ===========================================
+
+enum RiskLevel {
+  low
+  medium
+  high
+}
+
+model CryptoDepositConfig {
+  id            String      @id @default(cuid())
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  // Chain Information
+  chainId       String      @unique @map("chain_id") // Unique identifier (e.g., "ethereum", "arbitrum")
+  chainName     String      @map("chain_name") // Technical name (e.g., "Ethereum")
+  displayName   String      @map("display_name") // User-friendly name (e.g., "Ethereum (ETH)")
+  
+  // Configuration
+  isEnabled     Boolean     @default(true) @map("is_enabled")
+  depositInstructions String @map("deposit_instructions") // Custom instructions for this chain
+  
+  // Limits and Fees
+  minimumAmount Decimal?    @map("minimum_amount") @db.Decimal(20, 8) // Minimum deposit amount
+  maximumAmount Decimal?    @map("maximum_amount") @db.Decimal(20, 8) // Maximum deposit amount  
+  networkFee    Decimal?    @map("network_fee") @db.Decimal(20, 8) // Network fee estimate
+  
+  // Additional Information
+  processingTime String     @map("processing_time") // e.g., "5-10 minutes"
+  riskLevel     RiskLevel   @default(low) @map("risk_level")
+  iconUrl       String?     @map("icon_url") // URL to chain icon
+  explorerUrl   String?     @map("explorer_url") // Blockchain explorer URL
+  
+  // Supported Tokens (JSON array)
+  supportedTokens Json      @default("[]") @map("supported_tokens") // Array of token configurations
+  
+  // Audit Trail
+  lastModifiedBy String?    @map("last_modified_by") // Profile ID of who last modified this
+  lastModifiedAt DateTime?  @map("last_modified_at")
+  
+  // Relations
+  depositHistory CryptoDepositHistory[] // Track all changes to this config
+  
+  @@index([chainId])
+  @@index([isEnabled])
+  @@index([riskLevel])
+  @@map("crypto_deposit_configs")
+}
+
+model CryptoDepositHistory {
+  id            String      @id @default(cuid())
+  createdAt     DateTime    @default(now())
+  
+  // Configuration Reference
+  configId      String      @map("config_id")
+  
+  // Change Information
+  changeType    String      @map("change_type") // "created", "updated", "enabled", "disabled"
+  oldValues     Json?       @map("old_values") // Previous configuration values
+  newValues     Json        @map("new_values") // New configuration values
+  changeReason  String?     @map("change_reason") // Optional reason for the change
+  
+  // Audit Information
+  modifiedBy    String      @map("modified_by") // Profile ID of who made the change
+  modifiedAt    DateTime    @default(now()) @map("modified_at")
+  
+  // Relations
+  config        CryptoDepositConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+  
+  @@index([configId])
+  @@index([modifiedAt])
+  @@index([changeType])
+  @@map("crypto_deposit_history")
+}
+

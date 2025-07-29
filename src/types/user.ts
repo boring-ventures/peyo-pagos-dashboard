@@ -38,6 +38,7 @@ export interface UserFilters {
   role: string;
   status: string;
   search: string;
+  userTag: string;
 }
 
 // Pagination (reusable)

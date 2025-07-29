@@ -201,15 +201,15 @@ export function UserDataTable({
     return (
       <div className="space-y-4">
         {/* Table Header */}
-        <div className="grid grid-cols-6 gap-4 pb-2 border-b">
-          {Array.from({ length: 6 }).map((_, i) => (
+        <div className="grid grid-cols-7 gap-4 pb-2 border-b">
+          {Array.from({ length: 7 }).map((_, i) => (
             <Skeleton key={i} className="h-4 w-20" />
           ))}
         </div>
 
         {/* Table Rows */}
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="grid grid-cols-6 gap-4 py-2">
+          <div key={i} className="grid grid-cols-7 gap-4 py-2">
             <div className="flex items-center gap-2">
               <Skeleton className="h-8 w-8 rounded-full" />
               <div className="space-y-1">
@@ -217,7 +217,7 @@ export function UserDataTable({
                 <Skeleton className="h-3 w-16" />
               </div>
             </div>
-            {Array.from({ length: 5 }).map((_, j) => (
+            {Array.from({ length: 6 }).map((_, j) => (
               <Skeleton key={j} className="h-4 w-full" />
             ))}
           </div>
@@ -271,6 +271,15 @@ export function UserDataTable({
                 <div className="flex items-center gap-2">
                   Estado
                   {getSortIcon("status")}
+                </div>
+              </TableHead>
+              <TableHead
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() => handleSort("userTag")}
+              >
+                <div className="flex items-center gap-2">
+                  User Tag
+                  {getSortIcon("userTag")}
                 </div>
               </TableHead>
               <TableHead
@@ -334,6 +343,18 @@ export function UserDataTable({
                     )}
                     {USER_STATUS_LABELS[user.status]}
                   </Badge>
+                </TableCell>
+
+                <TableCell>
+                  {user.userTag ? (
+                    <Badge variant="outline" className="font-mono text-xs">
+                      {user.userTag}
+                    </Badge>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">
+                      Sin tag
+                    </span>
+                  )}
                 </TableCell>
 
                 <TableCell>

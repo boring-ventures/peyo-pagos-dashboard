@@ -27,6 +27,7 @@ export default function UsersPage() {
     role: "all",
     status: "all",
     search: "",
+    userTag: "",
   });
   const [refreshKey, setRefreshKey] = useState(0);
   const [showCreateModal, setShowCreateModal] = useState(false);

@@ -7,7 +7,7 @@ import {
   BarChart3,
   Settings,
   Activity,
-  Receipt,
+  Coins,
 } from "lucide-react";
 import type { SidebarData } from "../types";
 import type { UserRole } from "@prisma/client";
@@ -63,10 +63,27 @@ export const getSidebarData = (userRole?: UserRole | null): SidebarData => {
 
   // Add system configuration if user has access (ADMIN and SUPERADMIN)
   if (canAccessModule(userRole, "system-config")) {
+    const configItems = [
+      {
+        title: "Sistema",
+        url: "/system-config",
+        icon: Settings,
+      },
+    ];
+
+    // Add crypto deposits only for SUPERADMIN
+    if (userRole === "SUPERADMIN") {
+      configItems.push({
+        title: "Depósitos Crypto",
+        url: "/crypto-deposits",
+        icon: Coins,
+      });
+    }
+
     adminItems.push({
-      title: "Configuración del Sistema",
-      url: "/system-config",
+      title: "Configuración",
       icon: Settings,
+      items: configItems,
     });
   }
 
@@ -76,17 +93,6 @@ export const getSidebarData = (userRole?: UserRole | null): SidebarData => {
       title: "Transacciones",
       url: "/transactions",
       icon: Activity,
-    });
-  }
-
-  // Create billing items if user has analytics access
-  const billingItems = [];
-  if (canAccessModule(userRole, "analytics")) {
-    billingItems.push({
-      title: "Órdenes de Compra",
-      url: "/purchase-orders",
-      icon: Receipt,
-      isPlaceholder: true, // Will be implemented when we have a profile list
     });
   }
 
@@ -121,15 +127,7 @@ export const getSidebarData = (userRole?: UserRole | null): SidebarData => {
               items: adminItems,
             },
           ]
-        : []),
-      ...(billingItems.length > 0
-        ? [
-            {
-              title: "Facturación",
-              items: billingItems,
-            },
-          ]
-        : []),
+        : [])
     ],
   };
 };
