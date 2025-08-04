@@ -147,6 +147,7 @@ export interface FlatCardWithDetails {
     userTag: string | null;
     status: string;
   };
+  balanceAdditions?: CardBalanceAddition[];
 }
 
 export interface FlatCardFilters {
@@ -214,3 +215,64 @@ export const CARD_SORT_OPTIONS = [
 ] as const;
 
 export const CARD_STATUS_OPTIONS = ["active", "terminated", "frozen"] as const;
+
+// Card Balance Addition Types
+export interface CardBalanceAddition {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  cardId: string;
+  profileId: string;
+  amount: number;
+  currency: string;
+  source: BalanceAdditionSource;
+  method: BalanceAdditionMethod;
+  status: BalanceAdditionStatus;
+  processedAt?: string;
+  failedAt?: string;
+  feeAmount?: number;
+  feeCurrency?: string;
+  netAmount: number;
+  sourceTransactionId?: string;
+  sourceWalletAddress?: string;
+  sourceChain?: string;
+  sourceCurrency?: string;
+  bankAccountNumber?: string;
+  bankName?: string;
+  moonTransactionId?: string;
+  moonResponse?: any;
+  balanceBefore: number;
+  balanceAfter: number;
+  availableBalanceBefore: number;
+  availableBalanceAfter: number;
+  description?: string;
+  notes?: string;
+  tags: string[];
+  errorCode?: string;
+  errorMessage?: string;
+  retryCount: number;
+  initiatedBy?: string;
+  approvedBy?: string;
+}
+
+export type BalanceAdditionStatus =
+  | "pending"
+  | "processing"
+  | "completed"
+  | "failed"
+  | "cancelled";
+
+export type BalanceAdditionSource =
+  | "crypto_deposit"
+  | "bank_transfer"
+  | "card_top_up"
+  | "refund"
+  | "adjustment"
+  | "bonus"
+  | "other";
+
+export type BalanceAdditionMethod =
+  | "automatic"
+  | "manual"
+  | "api"
+  | "dashboard";

@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useUserCards } from "@/hooks/use-cards";
 import type { CardSummary } from "@/types/card";
+import { FlatCardDetailsModal } from "@/app/(dashboard)/cards/components/flat-card-details-modal";
 
 interface UserInfo {
   id: string;
@@ -56,6 +57,8 @@ export default function UserCardsPage() {
   const router = useRouter();
   const { profile } = useAuth();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [selectedCard, setSelectedCard] = useState<CardSummary | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const userId = params.userId as string;
 
@@ -92,6 +95,16 @@ export default function UserCardsPage() {
       title: "Copiado",
       description: "PayWithMoon Card ID copiado al portapapeles",
     });
+  };
+
+  const handleViewCardDetails = (card: CardSummary) => {
+    setSelectedCard(card);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedCard(null);
   };
 
   const getUserDisplayName = (user: UserInfo) => {
@@ -614,7 +627,9 @@ export default function UserCardsPage() {
                             Acciones de Tarjeta
                           </DropdownMenuLabel>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleViewCardDetails(card)}
+                          >
                             <Eye className="h-4 w-4 mr-2" />
                             Ver Detalles
                           </DropdownMenuItem>
@@ -644,6 +659,42 @@ export default function UserCardsPage() {
           </div>
         )}
       </div>
+
+      {/* Card Details Modal */}
+      <FlatCardDetailsModal
+        card={
+          selectedCard
+            ? {
+                ...selectedCard,
+                profileId: user.id,
+                createdAt:
+                  selectedCard.createdAt instanceof Date
+                    ? selectedCard.createdAt.toISOString()
+                    : new Date(selectedCard.createdAt).toISOString(),
+                updatedAt:
+                  selectedCard.createdAt instanceof Date
+                    ? selectedCard.createdAt.toISOString()
+                    : new Date(selectedCard.createdAt).toISOString(), // Using createdAt as updatedAt for now
+                expiration: new Date().toISOString(), // Placeholder
+                cardProductId: "placeholder",
+                pan: "placeholder",
+                cvv: "placeholder",
+                supportToken: "placeholder",
+                profile: {
+                  id: user.id,
+                  firstName: user.firstName,
+                  lastName: user.lastName,
+                  email: user.email,
+                  userTag: null,
+                  status: "active",
+                },
+                balanceAdditions: [], // Empty for now, will be populated from API
+              }
+            : null
+        }
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+      />
     </div>
   );
 }

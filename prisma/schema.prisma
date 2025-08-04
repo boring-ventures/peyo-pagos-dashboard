@@ -218,6 +218,7 @@ updatedAt     DateTime             @updatedAt
   wallets       Wallet[]             // User's blockchain wallets
   liquidationAddresses LiquidationAddress[] // User's liquidation addresses
   cards         Card[]               // User's PayWithMoon debit cards (USER role only)
+  cardBalanceAdditions CardBalanceAddition[] // User's card balance additions
   
   @@index([userId])
   @@index([status])
@@ -594,6 +595,7 @@ model Card {
   
   // Relations
   profile       Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  balanceAdditions CardBalanceAddition[] // Track all balance additions to this card
   
   @@index([profileId])
   @@index([moonCardId])
@@ -601,6 +603,115 @@ model Card {
   @@index([frozen])
   @@index([isActive])
   @@map("cards")
+}
+
+// ===========================================
+// CARD BALANCE ADDITION MODEL
+// ===========================================
+//
+// Purpose: Track all balance additions to PayWithMoon cards
+// including source of funds, amounts, fees, and processing status.
+//
+// Access: ADMIN and SUPERADMIN roles can view these records
+// USER role can only view their own balance additions
+//
+// ===========================================
+
+enum BalanceAdditionStatus {
+  pending
+  processing
+  completed
+  failed
+  cancelled
+}
+
+enum BalanceAdditionSource {
+  crypto_deposit
+  bank_transfer
+  card_top_up
+  refund
+  adjustment
+  bonus
+  other
+}
+
+enum BalanceAdditionMethod {
+  automatic
+  manual
+  api
+  dashboard
+}
+
+model CardBalanceAddition {
+  id            String      @id @default(cuid())
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  // Card Reference
+  cardId        String      @map("card_id")
+  profileId     String      @map("profile_id") // Redundant but useful for queries
+  
+  // Addition Details
+  amount        Decimal     @db.Decimal(10, 2) // Amount being added
+  currency      String      @default("USD") // Currency of the addition
+  source        BalanceAdditionSource // Source of the funds
+  method        BalanceAdditionMethod @default(automatic) // How the addition was initiated
+  
+  // Processing Information
+  status        BalanceAdditionStatus @default(pending)
+  processedAt   DateTime?   @map("processed_at") // When the addition was actually processed
+  failedAt      DateTime?   @map("failed_at") // When the addition failed (if applicable)
+  
+  // Fee Information
+  feeAmount     Decimal?    @map("fee_amount") @db.Decimal(10, 2) // Fee charged for this addition
+  feeCurrency   String?     @map("fee_currency") @default("USD") // Currency of the fee
+  netAmount     Decimal     @map("net_amount") @db.Decimal(10, 2) // Amount after fees (amount - feeAmount)
+  
+  // Source Transaction Details (for crypto deposits, bank transfers, etc.)
+  sourceTransactionId String? @map("source_transaction_id") // External transaction ID
+  sourceWalletAddress String? @map("source_wallet_address") // For crypto deposits
+  sourceChain        String? @map("source_chain") // For crypto deposits
+  sourceCurrency     String? @map("source_currency") // For crypto deposits
+  bankAccountNumber  String? @map("bank_account_number") // For bank transfers (masked)
+  bankName           String? @map("bank_name") // For bank transfers
+  
+  // PayWithMoon Integration
+  moonTransactionId  String? @map("moon_transaction_id") // PayWithMoon transaction ID
+  moonResponse       Json?   @map("moon_response") // Full PayWithMoon API response
+  
+  // Balance Tracking
+  balanceBefore      Decimal @map("balance_before") @db.Decimal(10, 2) // Card balance before addition
+  balanceAfter       Decimal @map("balance_after") @db.Decimal(10, 2) // Card balance after addition
+  availableBalanceBefore Decimal @map("available_balance_before") @db.Decimal(10, 2) // Available balance before
+  availableBalanceAfter  Decimal @map("available_balance_after") @db.Decimal(10, 2) // Available balance after
+  
+  // Metadata and Notes
+  description   String?     // Human-readable description
+  notes         String?     // Internal notes
+  tags          String[]    @default([]) // For categorization
+  
+  // Error Information
+  errorCode     String?     @map("error_code") // Error code if failed
+  errorMessage  String?     @map("error_message") // Error message if failed
+  retryCount    Int         @default(0) @map("retry_count") // Number of retry attempts
+  
+  // Audit Information
+  initiatedBy   String?     @map("initiated_by") // Profile ID of who initiated (if manual)
+  approvedBy    String?     @map("approved_by") // Profile ID of who approved (if required)
+  
+  // Relations
+  card          Card        @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  profile       Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  
+  @@index([cardId])
+  @@index([profileId])
+  @@index([status])
+  @@index([source])
+  @@index([createdAt])
+  @@index([processedAt])
+  @@index([sourceTransactionId])
+  @@index([moonTransactionId])
+  @@map("card_balance_additions")
 }
 
 // ===========================================
