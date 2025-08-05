@@ -219,6 +219,7 @@ updatedAt     DateTime             @updatedAt
   liquidationAddresses LiquidationAddress[] // User's liquidation addresses
   cards         Card[]               // User's PayWithMoon debit cards (USER role only)
   cardBalanceAdditions CardBalanceAddition[] // User's card balance additions
+  virtualAccounts VirtualAccount[] // User's Bridge.xyz virtual accounts
   
   @@index([userId])
   @@index([status])
@@ -603,6 +604,161 @@ model Card {
   @@index([frozen])
   @@index([isActive])
   @@map("cards")
+}
+
+// ===========================================
+// VIRTUAL ACCOUNTS MODELS
+// ===========================================
+//
+// Purpose: Manage Bridge.xyz Virtual Accounts (Virtual IBANs)
+// including account details, status, and activity tracking.
+//
+// Access: USER role can view their own virtual accounts
+// ADMIN and SUPERADMIN can view all virtual accounts
+//
+// ===========================================
+
+enum VirtualAccountStatus {
+  active
+  inactive
+  suspended
+  closed
+}
+
+enum VirtualAccountType {
+  iban
+  account_number
+  routing_number
+}
+
+enum VirtualAccountActivityType {
+  credit
+  debit
+  fee
+  adjustment
+  reversal
+}
+
+enum VirtualAccountActivityStatus {
+  pending
+  completed
+  failed
+  cancelled
+}
+
+model VirtualAccount {
+  id            String      @id @default(cuid())
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  // Bridge API Virtual Account Data
+  bridgeVirtualAccountId String @unique @map("bridge_virtual_account_id") // Bridge API virtual account ID
+  profileId     String      @map("profile_id") // Reference to Profile
+  customerId    String      @map("customer_id") // Bridge customer ID
+  
+  // Account Information
+  accountType   VirtualAccountType @default(iban) @map("account_type")
+  accountNumber String      @map("account_number") // IBAN, account number, or routing number
+  routingNumber String?     @map("routing_number") // For US accounts
+  bankName      String      @map("bank_name") // Bank name
+  bankCode      String?     @map("bank_code") // Bank code/SWIFT
+  country       String      // ISO country code
+  
+  // Account Details
+  currency      String      @default("USD") // Account currency
+  status        VirtualAccountStatus @default(active)
+  isActive      Boolean     @default(true) @map("is_active") // Our internal status flag
+  
+  // Balance Information
+  currentBalance Decimal    @default(0) @map("current_balance") @db.Decimal(20, 8)
+  availableBalance Decimal  @default(0) @map("available_balance") @db.Decimal(20, 8)
+  pendingBalance  Decimal   @default(0) @map("pending_balance") @db.Decimal(20, 8)
+  
+  // Account Metadata
+  description   String?     // Optional description
+  tags          String[]    @default([]) // For categorization
+  metadata      Json?       // Additional Bridge API data
+  
+  // Bridge Protocol Timestamps
+  bridgeCreatedAt DateTime  @map("bridge_created_at")
+  bridgeUpdatedAt DateTime  @map("bridge_updated_at")
+  lastActivityAt DateTime?  @map("last_activity_at")
+  
+  // Raw Bridge API Response (for debugging/future use)
+  bridgeRawData Json?       @map("bridge_raw_data")
+  
+  // Relations
+  profile       Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  activities    VirtualAccountActivity[] // One-to-many relationship with activities
+  
+  @@index([profileId])
+  @@index([customerId])
+  @@index([bridgeVirtualAccountId])
+  @@index([accountNumber])
+  @@index([status])
+  @@index([isActive])
+  @@index([country])
+  @@index([currency])
+  @@map("virtual_accounts")
+}
+
+model VirtualAccountActivity {
+  id            String      @id @default(cuid())
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  // Bridge API Activity Data
+  bridgeActivityId String   @unique @map("bridge_activity_id") // Bridge API activity ID
+  virtualAccountId String   @map("virtual_account_id")
+  customerId    String      @map("customer_id") // Bridge customer ID
+  
+  // Activity Information
+  type          VirtualAccountActivityType
+  status        VirtualAccountActivityStatus @default(pending)
+  amount        Decimal     @db.Decimal(20, 8) // Transaction amount
+  currency      String      @default("USD") // Transaction currency
+  fee           Decimal?    @db.Decimal(20, 8) // Fee amount if applicable
+  
+  // Transaction Details
+  description   String?     // Transaction description
+  reference     String?     // External reference number
+  memo          String?     // Transaction memo
+  
+  // Source/Destination Information
+  sourceAccount String?     @map("source_account") // Source account details
+  destinationAccount String? @map("destination_account") // Destination account details
+  sourceName    String?     @map("source_name") // Name of sender
+  destinationName String?   @map("destination_name") // Name of recipient
+  
+  // Balance Impact
+  balanceBefore Decimal     @map("balance_before") @db.Decimal(20, 8)
+  balanceAfter  Decimal     @map("balance_after") @db.Decimal(20, 8)
+  availableBalanceBefore Decimal @map("available_balance_before") @db.Decimal(20, 8)
+  availableBalanceAfter  Decimal @map("available_balance_after") @db.Decimal(20, 8)
+  
+  // Timestamps
+  bridgeCreatedAt DateTime  @map("bridge_created_at")
+  bridgeUpdatedAt DateTime  @map("bridge_updated_at")
+  processedAt    DateTime?  @map("processed_at") // When the activity was processed
+  
+  // Error Information
+  errorCode     String?     @map("error_code") // Error code if failed
+  errorMessage  String?     @map("error_message") // Error message if failed
+  
+  // Raw Bridge API Response (for debugging/future use)
+  bridgeRawData Json?       @map("bridge_raw_data")
+  
+  // Relations
+  virtualAccount VirtualAccount @relation(fields: [virtualAccountId], references: [id], onDelete: Cascade)
+  
+  @@index([virtualAccountId])
+  @@index([customerId])
+  @@index([bridgeActivityId])
+  @@index([type])
+  @@index([status])
+  @@index([bridgeCreatedAt])
+  @@index([processedAt])
+  @@map("virtual_account_activities")
 }
 
 // ===========================================
