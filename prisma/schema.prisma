@@ -221,6 +221,7 @@ model Profile {
   cardBalanceAdditions CardBalanceAddition[] // User's card balance additions
   externalAccounts     ExternalAccount[] // User's bank external accounts (US/EU via Bridge)
   virtualAccounts      VirtualAccount[] // User's Bridge.xyz virtual accounts
+  DepositQrRequest     DepositQrRequest[]
 
   @@index([userId])
   @@index([status])
@@ -458,6 +459,7 @@ model Wallet {
   profile              Profile              @relation(fields: [profileId], references: [id], onDelete: Cascade)
   transactions         Transaction[] // One-to-many relationship with transactions
   liquidationAddresses LiquidationAddress[] // One-to-many relationship with liquidation addresses
+  DepositQrRequest     DepositQrRequest[]
 
   @@index([profileId])
   @@index([bridgeWalletId])
@@ -1186,4 +1188,82 @@ model CryptoDepositHistory {
   @@index([modifiedAt])
   @@index([changeType])
   @@map("crypto_deposit_history")
+}
+
+// ===========================================
+// QR DEPOSITS (SIP/BISA) MODELS
+// ===========================================
+// Purpose: Track QR requests and daily analytics for Bs→USDC deposits
+// Note: Business logic runs in mobile app/edge functions; this is storage only
+
+enum QrDepositStatus {
+  PENDING // QR generated, waiting for payment
+  PAID_UNCONFIRMED // Payment detected by SIP, not yet processed
+  TRANSFERRING // Bridge transfer in progress
+  COMPLETED // Successfully completed
+  FAILED // Error occurred
+  EXPIRED // QR expired
+  CANCELLED // Cancelled by user
+}
+
+enum QrPriority {
+  HIGH // 0-30 min: Check every 2 minutes
+  MEDIUM // 30min-2h: Check every 5 minutes
+  LOW // 2h-24h: Check every 15 minutes
+  CLEANUP // >24h: Check daily for cleanup
+}
+
+model DepositQrRequest {
+  id               String @id @default(cuid())
+  profileId        String @map("profile_id")
+  bridgeCustomerId String @map("bridge_customer_id")
+  targetWalletId   String @map("target_wallet_id")
+  qrReferenceId    String @unique @map("qr_reference_id")
+
+  // Financial data
+  amountBs     Decimal @map("amount_bs") @db.Decimal(12, 2)
+  amountUsd    Decimal @map("amount_usd") @db.Decimal(12, 6)
+  exchangeRate Decimal @map("exchange_rate") @db.Decimal(10, 4)
+
+  // Status management
+  status   QrDepositStatus @default(PENDING)
+  priority QrPriority      @default(HIGH)
+
+  // Verification tracking
+  verificationCount Int       @default(0) @map("verification_count")
+  lastVerifiedAt    DateTime? @map("last_verified_at")
+
+  // Timestamps
+  expiresAt DateTime  @map("expires_at")
+  paidAt    DateTime? @map("paid_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  // Additional data
+  metadata Json?
+
+  // Relations
+  profile      Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  targetWallet Wallet  @relation(fields: [targetWalletId], references: [id])
+
+  @@index([status, priority, lastVerifiedAt])
+  @@index([profileId, status])
+  @@index([qrReferenceId])
+  @@map("deposit_qr_requests")
+}
+
+model QrAnalytics {
+  id                String   @id @default(cuid())
+  date              DateTime @unique @db.Date
+  totalGenerated    Int      @default(0) @map("total_generated")
+  totalPaid         Int      @default(0) @map("total_paid")
+  avgPaymentTimeMin Int?     @map("avg_payment_time_min")
+  successRate       Decimal? @map("success_rate") @db.Decimal(5, 4)
+  apiCallsCount     Int      @default(0) @map("api_calls_count")
+  avgResponseTimeMs Int?     @map("avg_response_time_ms")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("qr_analytics")
 }
