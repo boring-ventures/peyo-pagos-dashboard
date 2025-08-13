@@ -451,6 +451,13 @@ model Wallet {
   address        String
   bridgeTags     String[]    @default([]) @map("bridge_tags") // Tags from Bridge API
 
+  // Public Identifier and UI Customization
+  // Generation for `peyoWalletId` is handled in Supabase (SQL function/trigger)
+  peyoWalletId String? @unique @map("peyo_wallet_id")
+  walletName   String  @default("Mi Billetera Principal") @map("wallet_name")
+  walletColor  String  @default("#6366F1") @map("wallet_color")
+  walletIcon   String  @default("wallet") @map("wallet_icon")
+
   // Bridge Protocol Timestamps
   bridgeCreatedAt DateTime? @map("bridge_created_at")
   bridgeUpdatedAt DateTime? @map("bridge_updated_at")
@@ -458,6 +465,8 @@ model Wallet {
   // Relations
   profile              Profile              @relation(fields: [profileId], references: [id], onDelete: Cascade)
   transactions         Transaction[] // One-to-many relationship with transactions
+  sentTransactions     Transaction[]        @relation("TransactionSenderWallet")
+  receivedTransactions Transaction[]        @relation("TransactionRecipientWallet")
   liquidationAddresses LiquidationAddress[] // One-to-many relationship with liquidation addresses
   DepositQrRequest     DepositQrRequest[]
 
@@ -475,6 +484,10 @@ model Transaction {
   // Bridge API Transaction Data
   bridgeTransactionId String @unique @map("bridge_transaction_id") // Unique identifier from Bridge API
   walletId            String @map("wallet_id")
+
+  // Participants (Peyo internal transfers)
+  senderWalletId    String? @map("sender_wallet_id")
+  recipientWalletId String? @map("recipient_wallet_id")
 
   // Transaction Details
   amount       String // Amount as string (from Bridge API)
@@ -497,12 +510,16 @@ model Transaction {
   bridgeRawData Json? @map("bridge_raw_data")
 
   // Relations
-  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  wallet          Wallet  @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  senderWallet    Wallet? @relation("TransactionSenderWallet", fields: [senderWalletId], references: [id])
+  recipientWallet Wallet? @relation("TransactionRecipientWallet", fields: [recipientWalletId], references: [id])
 
   @@index([walletId])
   @@index([bridgeTransactionId])
   @@index([customerId])
   @@index([bridgeCreatedAt])
+  @@index([senderWalletId])
+  @@index([recipientWalletId])
   @@map("transactions")
 }
 
