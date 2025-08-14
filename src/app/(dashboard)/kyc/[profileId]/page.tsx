@@ -1013,17 +1013,19 @@ export default function KYCProfileDetailsPage() {
                                     {(
                                       endorsement.requirements as EndorsementRequirements
                                     ).complete!.map(
-                                      (req: string, index: number) => (
+                                      (req: any, index: number) => (
                                         <Badge
                                           key={index}
                                           variant="outline"
                                           className="justify-start p-3 bg-green-50 text-green-700 border-green-200"
                                         >
-                                          {req
-                                            .replace(/_/g, " ")
-                                            .replace(/\b\w/g, (l) =>
-                                              l.toUpperCase()
-                                            )}
+                                          {typeof req === 'string' 
+                                            ? req
+                                                .replace(/_/g, " ")
+                                                .replace(/\b\w/g, (l) =>
+                                                  l.toUpperCase()
+                                                )
+                                            : JSON.stringify(req)}
                                         </Badge>
                                       )
                                     )}
@@ -1053,17 +1055,19 @@ export default function KYCProfileDetailsPage() {
                                     {(
                                       endorsement.requirements as EndorsementRequirements
                                     ).pending!.map(
-                                      (req: string, index: number) => (
+                                      (req: any, index: number) => (
                                         <Badge
                                           key={index}
                                           variant="outline"
                                           className="justify-start p-3 bg-yellow-50 text-yellow-700 border-yellow-200"
                                         >
-                                          {req
-                                            .replace(/_/g, " ")
-                                            .replace(/\b\w/g, (l) =>
-                                              l.toUpperCase()
-                                            )}
+                                          {typeof req === 'string'
+                                            ? req
+                                                .replace(/_/g, " ")
+                                                .replace(/\b\w/g, (l) =>
+                                                  l.toUpperCase()
+                                                )
+                                            : JSON.stringify(req)}
                                         </Badge>
                                       )
                                     )}
@@ -1093,17 +1097,19 @@ export default function KYCProfileDetailsPage() {
                                     {(
                                       endorsement.requirements as EndorsementRequirements
                                     ).issues!.map(
-                                      (issue: string, index: number) => (
+                                      (issue: any, index: number) => (
                                         <Badge
                                           key={index}
                                           variant="destructive"
                                           className="justify-start p-3"
                                         >
-                                          {issue
-                                            .replace(/_/g, " ")
-                                            .replace(/\b\w/g, (l) =>
-                                              l.toUpperCase()
-                                            )}
+                                          {typeof issue === 'string'
+                                            ? issue
+                                                .replace(/_/g, " ")
+                                                .replace(/\b\w/g, (l) =>
+                                                  l.toUpperCase()
+                                                )
+                                            : JSON.stringify(issue)}
                                         </Badge>
                                       )
                                     )}
