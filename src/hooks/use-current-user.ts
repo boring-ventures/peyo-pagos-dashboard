@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import type { User } from "@supabase/supabase-js";
 import type { Profile } from "@prisma/client";
+import { useUserStore } from "@/store/userStore";
+import { performanceMonitor } from "@/lib/utils/performance-monitor";
 
 type CurrentUserData = {
   user: User | null;
@@ -21,6 +23,7 @@ export function useCurrentUser(): CurrentUserData {
   const supabase = createClientComponentClient();
 
   const fetchUserData = useCallback(async () => {
+    const startTime = Date.now();
     try {
       setIsLoading(true);
       setError(null);
@@ -36,7 +39,32 @@ export function useCurrentUser(): CurrentUserData {
       if (userData.user) {
         setUser(userData.user);
 
-        // Fetch the user's profile from the API
+        // Intentar usar cache primero
+        const userStore = useUserStore.getState();
+        const cachedUser = userStore.getUserFromCache();
+        
+        if (cachedUser && cachedUser.id === userData.user.id) {
+          const responseTime = Date.now() - startTime;
+          performanceMonitor.logRequest("use-current-user", userData.user.id, true, responseTime);
+          
+          // Convertir formato de Zustand a Profile
+          const profileData: Profile = {
+            id: cachedUser.id,
+            userId: cachedUser.id,
+            email: cachedUser.email,
+            firstName: cachedUser.name?.split(' ')[0] || '',
+            lastName: cachedUser.name?.split(' ').slice(1).join(' ') || '',
+            status: cachedUser.isActive ? 'active' : 'disabled',
+            role: cachedUser.role as any,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+          
+          setProfile(profileData);
+          return;
+        }
+
+        // Fallback a API call
         const response = await fetch("/api/profile");
 
         if (!response.ok) {
@@ -44,15 +72,42 @@ export function useCurrentUser(): CurrentUserData {
         }
 
         const profileData = await response.json();
+        const responseTime = Date.now() - startTime;
+        performanceMonitor.logRequest("use-current-user", userData.user.id, true, responseTime);
+        
         setProfile(profileData);
+        
+        // Actualizar cache con datos frescos
+        if (profileData) {
+          const userForStore = {
+            id: profileData.id,
+            email: profileData.email,
+            name: `${profileData.firstName} ${profileData.lastName}`.trim(),
+            role: profileData.role,
+            isActive: profileData.status === 'active',
+            isDeleted: profileData.status === 'deleted',
+            roleId: profileData.id,
+            userPermission: {
+              id: profileData.id,
+              userId: profileData.id,
+              permissions: { dashboard: true }, // Asumir permisos básicos
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+          };
+          
+          userStore.updateCache(userForStore as any);
+        }
       }
     } catch (err) {
+      const responseTime = Date.now() - startTime;
+      performanceMonitor.logRequest("use-current-user", user?.id, false, responseTime);
       console.error("Error fetching user data:", err);
       setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
       setIsLoading(false);
     }
-  }, [supabase.auth]);
+  }, [supabase.auth, user?.id]);
 
   useEffect(() => {
     fetchUserData();

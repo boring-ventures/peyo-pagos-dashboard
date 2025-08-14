@@ -11,7 +11,7 @@ export async function GET(
     const userId = (await params).userId;
 
     // Create Supabase client with awaited cookies
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createRouteHandlerClient({ cookies: await cookies() });
 
     // Get the current user's session
     const {
@@ -44,7 +44,33 @@ export async function GET(
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ profile });
+    // Convertir el formato para que sea compatible con el middleware
+    const middlewareProfile = {
+      id: profile.id,
+      email: profile.email || "",
+      name: `${profile.firstName || ""} ${profile.lastName || ""}`.trim(),
+      role: profile.role,
+      isActive: profile.status === "active",
+      isDeleted: profile.status === "deleted",
+      roleId: profile.id,
+      permissions: {
+        dashboard: profile.role === "ADMIN" || profile.role === "SUPERADMIN",
+        analytics: profile.role === "SUPERADMIN",
+        users: profile.role === "ADMIN" || profile.role === "SUPERADMIN",
+        kyc: profile.role === "ADMIN" || profile.role === "SUPERADMIN",
+        wallets: profile.role === "ADMIN" || profile.role === "SUPERADMIN",
+        settings: profile.role === "ADMIN" || profile.role === "SUPERADMIN",
+      },
+    };
+
+    // Debug logging
+    console.log(`[API] Profile data for ${userId}:`, {
+      originalStatus: profile.status,
+      convertedIsActive: middlewareProfile.isActive,
+      role: profile.role,
+    });
+
+    return NextResponse.json({ profile: middlewareProfile });
   } catch (error) {
     console.error("Error fetching profile:", error);
     return NextResponse.json(
@@ -62,7 +88,7 @@ export async function PATCH(
     const userId = (await params).userId;
 
     // Create Supabase client with awaited cookies
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createRouteHandlerClient({ cookies: await cookies() });
 
     // Get the current user's session
     const {

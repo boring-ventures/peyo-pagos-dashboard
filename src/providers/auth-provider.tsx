@@ -6,6 +6,8 @@ import type { User, Session } from "@supabase/auth-helpers-nextjs";
 import { useRouter } from "next/navigation";
 import type { Profile } from "@/types/profile";
 import { canAccessModule } from "@/lib/auth/role-permissions";
+import { performanceMonitor } from "@/lib/utils/performance-monitor";
+import { useUserStore } from "@/store/userStore";
 
 interface AuthContextType {
   user: User | null;
@@ -39,13 +41,69 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Fetch profile function
   const fetchProfile = async (userId: string) => {
+    const startTime = Date.now();
     try {
+      // Intentar usar cache primero
+      const userStore = useUserStore.getState();
+      const cachedUser = userStore.getUserFromCache();
+      
+      if (cachedUser && cachedUser.id === userId) {
+        const responseTime = Date.now() - startTime;
+        performanceMonitor.logRequest("auth-provider", userId, true, responseTime);
+        
+        // Convertir formato de Zustand a Profile
+        const profileData: Profile = {
+          id: cachedUser.id,
+          userId: cachedUser.id,
+          email: cachedUser.email,
+          firstName: cachedUser.name?.split(' ')[0] || '',
+          lastName: cachedUser.name?.split(' ').slice(1).join(' ') || '',
+          status: cachedUser.isActive ? 'active' : 'disabled',
+          role: cachedUser.role as any,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        
+        setProfile(profileData);
+        return profileData;
+      }
+
+      // Fallback a API call
       const response = await fetch(`/api/profile/${userId}`);
       if (!response.ok) throw new Error("Failed to fetch profile");
       const data = await response.json();
+      
+      const responseTime = Date.now() - startTime;
+      performanceMonitor.logRequest("auth-provider", userId, true, responseTime);
+      
       setProfile(data.profile);
+      
+      // Actualizar cache con datos frescos
+      if (data.profile) {
+        const userForStore = {
+          id: data.profile.id,
+          email: data.profile.email,
+          name: `${data.profile.firstName} ${data.profile.lastName}`.trim(),
+          role: data.profile.role,
+          isActive: data.profile.status === 'active',
+          isDeleted: data.profile.status === 'deleted',
+          roleId: data.profile.id,
+          userPermission: {
+            id: data.profile.id,
+            userId: data.profile.id,
+            permissions: { dashboard: true }, // Asumir permisos básicos
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        };
+        
+        userStore.updateCache(userForStore as any);
+      }
+      
       return data.profile;
     } catch (error) {
+      const responseTime = Date.now() - startTime;
+      performanceMonitor.logRequest("auth-provider", userId, false, responseTime);
       console.error("Error fetching profile:", error);
       setProfile(null);
       return null;

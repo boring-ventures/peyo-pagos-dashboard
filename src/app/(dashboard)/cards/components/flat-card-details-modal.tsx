@@ -21,8 +21,25 @@ import {
   EyeOff,
   Calendar,
   Shield,
+  TrendingUp,
+  Activity,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  Ban,
+  Wallet,
+  Building,
+  Gift,
+  RotateCcw,
+  MoreHorizontal,
 } from "lucide-react";
-import { FlatCardWithDetails } from "@/types/card";
+import {
+  FlatCardWithDetails,
+  CardBalanceAddition,
+  BalanceAdditionStatus,
+  BalanceAdditionSource,
+} from "@/types/card";
 import { format } from "date-fns";
 import { toast } from "@/components/ui/use-toast";
 import { useState } from "react";
@@ -98,6 +115,40 @@ export function FlatCardDetailsModal({
       );
     }
     return <Badge variant="secondary">Inactive</Badge>;
+  };
+
+  const getBalanceAdditionStatusIcon = (status: BalanceAdditionStatus) => {
+    switch (status) {
+      case "completed":
+        return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case "pending":
+        return <Clock className="h-4 w-4 text-yellow-600" />;
+      case "processing":
+        return <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />;
+      case "failed":
+        return <XCircle className="h-4 w-4 text-red-600" />;
+      case "cancelled":
+        return <Ban className="h-4 w-4 text-gray-600" />;
+      default:
+        return <Activity className="h-4 w-4 text-gray-600" />;
+    }
+  };
+
+  const getBalanceAdditionStatusVariant = (status: BalanceAdditionStatus) => {
+    switch (status) {
+      case "completed":
+        return "default" as const;
+      case "pending":
+        return "secondary" as const;
+      case "processing":
+        return "outline" as const;
+      case "failed":
+        return "destructive" as const;
+      case "cancelled":
+        return "secondary" as const;
+      default:
+        return "secondary" as const;
+    }
   };
 
   return (
@@ -389,6 +440,115 @@ export function FlatCardDetailsModal({
                     </Badge>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Card Balance Additions */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <TrendingUp className="h-4 w-4" />
+                    Card Balance Additions
+                  </CardTitle>
+                  <Badge variant="outline">
+                    {card.balanceAdditions?.length || 0} additions
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {!card.balanceAdditions ||
+                card.balanceAdditions.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Activity className="mx-auto h-8 w-8 mb-2" />
+                    <p>No balance additions found for this card.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {card.balanceAdditions.map((addition) => (
+                      <div key={addition.id} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            {getBalanceAdditionStatusIcon(addition.status)}
+                            <Badge
+                              variant={getBalanceAdditionStatusVariant(
+                                addition.status
+                              )}
+                            >
+                              {addition.status}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              {addition.source.replace("_", " ")}
+                            </Badge>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg font-bold text-green-600">
+                              +{formatCurrency(addition.amount)}
+                            </div>
+                            {addition.feeAmount && (
+                              <div className="text-sm text-muted-foreground">
+                                Fee: {formatCurrency(addition.feeAmount)}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">
+                              Method:
+                            </span>
+                            <span className="ml-1 font-medium">
+                              {addition.method}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">
+                              Created:
+                            </span>
+                            <span className="ml-1 font-medium">
+                              {formatDate(addition.createdAt)}
+                            </span>
+                          </div>
+                          {addition.processedAt && (
+                            <div>
+                              <span className="text-muted-foreground">
+                                Processed:
+                              </span>
+                              <span className="ml-1 font-medium">
+                                {formatDate(addition.processedAt)}
+                              </span>
+                            </div>
+                          )}
+                          {addition.description && (
+                            <div className="col-span-2">
+                              <span className="text-muted-foreground">
+                                Description:
+                              </span>
+                              <span className="ml-1 font-medium">
+                                {addition.description}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {addition.sourceTransactionId && (
+                          <div className="mt-3 pt-3 border-t">
+                            <div className="flex items-center gap-2">
+                              <Wallet className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-xs text-muted-foreground">
+                                Source Transaction:
+                              </span>
+                              <code className="text-xs bg-muted px-2 py-1 rounded">
+                                {addition.sourceTransactionId}
+                              </code>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
