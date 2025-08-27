@@ -1,28 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-// ===========================================
-// USER FLOWS DOCUMENTATION
-// ===========================================
-//
-// 1. SUPERADMIN FLOW:
-//    - Profile only (minimal data: userId, email, status, role)
-//    - No KYCProfile needed
-//    - Direct dashboard access
-//    - No Bridge Protocol integration
-//
-// 2. REGULAR USER FLOW:
-//    - Profile (basic: userId, email, status, role)  
-//    - KYCProfile (full personal data for Bridge Protocol)
-//    - Bridge Protocol verification required
-//    - Customer ID assigned if approved
-//    - Detailed tracking of verification status
-//
-// ===========================================
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -31,6 +6,836 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
+}
+
+model Profile {
+  id                   String                 @id @default(cuid())
+  userId               String                 @unique
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  role                 UserRole               @default(USER)
+  email                String?                @unique
+  firstName            String?                @map("first_name")
+  lastName             String?                @map("last_name")
+  status               UserStatus             @default(active)
+  userTag              String?                @unique @map("user_tag")
+  cardBalanceAdditions CardBalanceAddition[]
+  cards                Card[]
+  DepositQrRequest     DepositQrRequest[]
+  events               Event[]
+  externalAccounts     ExternalAccount[]
+  kycProfile           KYCProfile?
+  liquidationAddresses LiquidationAddress[]
+  transfer_sync_status transfer_sync_status[]
+  user_preferences     user_preferences?
+  user_sessions        user_sessions[]
+  virtualAccounts      VirtualAccount[]
+  wallets              Wallet[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([role])
+  @@index([email])
+  @@map("profiles")
+}
+
+model KYCProfile {
+  id                             String                      @id @default(cuid())
+  profileId                      String                      @unique @map("profile_id")
+  createdAt                      DateTime                    @default(now())
+  updatedAt                      DateTime                    @updatedAt
+  bridgeCustomerId               String?                     @unique @map("bridge_customer_id")
+  customerType                   CustomerType                @default(individual) @map("customer_type")
+  middleName                     String?                     @map("middle_name")
+  kycStatus                      KYCStatus                   @default(not_started) @map("kyc_status")
+  kycSubmittedAt                 DateTime?                   @map("kyc_submitted_at")
+  kycApprovedAt                  DateTime?                   @map("kyc_approved_at")
+  kycRejectedAt                  DateTime?                   @map("kyc_rejected_at")
+  kycRejectionReason             String?                     @map("kyc_rejection_reason")
+  signedAgreementId              String?                     @map("signed_agreement_id")
+  verifiedSelfieAt               DateTime?                   @map("verified_selfie_at")
+  completedCustomerSafetyCheckAt DateTime?                   @map("completed_customer_safety_check_at")
+  accountPurpose                 AccountPurpose?             @map("account_purpose")
+  accountPurposeOther            String?                     @map("account_purpose_other")
+  employmentStatus               EmploymentStatus?           @map("employment_status")
+  expectedMonthlyPaymentsUsd     ExpectedMonthlyPaymentsUSD? @map("expected_monthly_payments_usd")
+  mostRecentOccupation           String?                     @map("most_recent_occupation")
+  futureRequirementsDue          String[]                    @default([]) @map("future_requirements_due")
+  hasAcceptedTermsOfService      Boolean?                    @default(false) @map("has_accepted_terms_of_service")
+  payinCrypto                    CapabilityStatus?           @default(pending) @map("payin_crypto")
+  payinFiat                      CapabilityStatus?           @default(pending) @map("payin_fiat")
+  payoutCrypto                   CapabilityStatus?           @default(pending) @map("payout_crypto")
+  payoutFiat                     CapabilityStatus?           @default(pending) @map("payout_fiat")
+  requirementsDue                String[]                    @default([]) @map("requirements_due")
+  birthDate                      DateTime?                   @map("birth_date")
+  email                          String?                     @unique
+  firstName                      String?                     @map("first_name")
+  lastName                       String?                     @map("last_name")
+  nationality                    String?
+  phone                          String?
+  bridgeRawResponse              Json?                       @map("bridge_raw_response")
+  bridgeRawRequest               Json?                       @map("bridge_raw_request")
+  address                        Address?
+  documents                      Document[]
+  endorsements                   Endorsement[]
+  identifyingInfo                IdentifyingInformation[]
+  profile                        Profile                     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  rejectionReasons               RejectionReason[]
+
+  @@index([kycStatus])
+  @@index([bridgeCustomerId])
+  @@map("kyc_profiles")
+}
+
+model Address {
+  id           String     @id @default(cuid())
+  kycProfileId String     @unique @map("kyc_profile_id")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  streetLine1  String     @map("street_line_1")
+  city         String
+  country      String
+  streetLine2  String?    @map("street_line_2")
+  subdivision  String?
+  postalCode   String?    @map("postal_code")
+  kycProfile   KYCProfile @relation(fields: [kycProfileId], references: [id], onDelete: Cascade)
+
+  @@map("addresses")
+}
+
+model Document {
+  id           String            @id @default(cuid())
+  kycProfileId String            @map("kyc_profile_id")
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  purposes     DocumentPurpose[]
+  fileUrl      String?           @map("file_url")
+  fileSize     Int?              @map("file_size")
+  description  String?
+  kycProfile   KYCProfile        @relation(fields: [kycProfileId], references: [id], onDelete: Cascade)
+
+  @@index([kycProfileId])
+  @@map("documents")
+}
+
+model IdentifyingInformation {
+  id             String       @id @default(cuid())
+  kycProfileId   String       @map("kyc_profile_id")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  type           DocumentType @map("document_type")
+  issuingCountry String       @map("issuing_country")
+  number         String?
+  description    String?
+  expiration     DateTime?
+  imageFront     String?      @map("image_front")
+  imageBack      String?      @map("image_back")
+  kycProfile     KYCProfile   @relation(fields: [kycProfileId], references: [id], onDelete: Cascade)
+
+  @@index([kycProfileId])
+  @@index([type])
+  @@map("identifying_information")
+}
+
+model RejectionReason {
+  id              String     @id @default(cuid())
+  kycProfileId    String     @map("kyc_profile_id")
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  developerReason String     @map("developer_reason")
+  reason          String
+  bridgeCreatedAt DateTime?  @map("bridge_created_at")
+  kycProfile      KYCProfile @relation(fields: [kycProfileId], references: [id], onDelete: Cascade)
+
+  @@index([kycProfileId])
+  @@map("rejection_reasons")
+}
+
+model Endorsement {
+  id           String            @id @default(cuid())
+  kycProfileId String            @map("kyc_profile_id")
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  name         EndorsementType   @map("endorsement_type")
+  status       EndorsementStatus @default(incomplete)
+  requirements Json?
+  kycProfile   KYCProfile        @relation(fields: [kycProfileId], references: [id], onDelete: Cascade)
+
+  @@index([kycProfileId])
+  @@index([name])
+  @@map("endorsements")
+}
+
+model Event {
+  id             String        @id @default(cuid())
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  type           EventType
+  module         EventModule
+  description    String?
+  profileId      String        @map("profile_id")
+  metadata       Json?
+  feeConfigId    String?       @map("fee_config_id")
+  systemConfigId String?       @map("system_config_id")
+  feeConfig      FeeConfig?    @relation(fields: [feeConfigId], references: [id])
+  profile        Profile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  systemConfig   SystemConfig? @relation(fields: [systemConfigId], references: [id])
+
+  @@index([profileId])
+  @@index([type])
+  @@index([module])
+  @@index([createdAt])
+  @@index([systemConfigId])
+  @@index([feeConfigId])
+  @@map("events")
+}
+
+model Wallet {
+  id                   String               @id @default(cuid())
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  profileId            String               @map("profile_id")
+  walletTag            WalletTag            @default(general_use) @map("wallet_tag")
+  isActive             Boolean              @default(true) @map("is_active")
+  bridgeWalletId       String               @unique @map("bridge_wallet_id")
+  chain                WalletChain
+  address              String
+  bridgeTags           String[]             @default([]) @map("bridge_tags")
+  bridgeCreatedAt      DateTime?            @map("bridge_created_at")
+  bridgeUpdatedAt      DateTime?            @map("bridge_updated_at")
+  peyoWalletId         String?              @unique @map("peyo_wallet_id")
+  walletColor          String               @default("#6366F1") @map("wallet_color")
+  walletIcon           String               @default("wallet") @map("wallet_icon")
+  walletName           String               @default("Mi Billetera Principal") @map("wallet_name")
+  display_order        Int                  @default(0)
+  is_default           Boolean              @default(false)
+  last_selected_at     DateTime?
+  DepositQrRequest     DepositQrRequest[]
+  liquidationAddresses LiquidationAddress[]
+  receivedTransactions Transaction[]        @relation("TransactionRecipientWallet")
+  sentTransactions     Transaction[]        @relation("TransactionSenderWallet")
+  transactions         Transaction[]
+  profile              Profile              @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@index([bridgeWalletId])
+  @@index([address])
+  @@map("wallets")
+}
+
+model Transaction {
+  id                     String   @id @default(cuid())
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  bridgeTransactionId    String   @unique @map("bridge_transaction_id")
+  walletId               String   @map("wallet_id")
+  amount                 String
+  developerFee           String?  @map("developer_fee")
+  customerId             String   @map("customer_id")
+  sourcePaymentRail      String?  @map("source_payment_rail")
+  sourceCurrency         String?  @map("source_currency")
+  destinationPaymentRail String?  @map("destination_payment_rail")
+  destinationCurrency    String?  @map("destination_currency")
+  bridgeCreatedAt        DateTime @map("bridge_created_at")
+  bridgeUpdatedAt        DateTime @map("bridge_updated_at")
+  bridgeRawData          Json?    @map("bridge_raw_data")
+  recipientWalletId      String?  @map("recipient_wallet_id")
+  senderWalletId         String?  @map("sender_wallet_id")
+  display_category       String?
+  is_favorite            Boolean  @default(false)
+  user_notes             String?
+  blockchain_tx_id       String?
+  confirmation_count     Int?
+  description            String?
+  external_account_id    String?
+  liquidation_address_id String?
+  required_confirmations Int?
+  status                 String?
+  transfer_id            String?
+  type                   String?
+  recipientWallet        Wallet?  @relation("TransactionRecipientWallet", fields: [recipientWalletId], references: [id])
+  senderWallet           Wallet?  @relation("TransactionSenderWallet", fields: [senderWalletId], references: [id])
+  wallet                 Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId])
+  @@index([bridgeTransactionId])
+  @@index([customerId])
+  @@index([bridgeCreatedAt])
+  @@index([senderWalletId])
+  @@index([recipientWalletId])
+  @@map("transactions")
+}
+
+model TransactionSync {
+  id                           String    @id @default(cuid())
+  createdAt                    DateTime  @default(now())
+  updatedAt                    DateTime  @updatedAt
+  walletId                     String    @map("wallet_id")
+  lastSyncAt                   DateTime  @map("last_sync_at")
+  lastSyncTransactionCount     Int       @default(0) @map("last_sync_transaction_count")
+  newTransactionsFound         Int       @default(0) @map("new_transactions_found")
+  syncStatus                   String    @default("success") @map("sync_status")
+  errorMessage                 String?   @map("error_message")
+  lastProcessedBridgeCreatedAt DateTime? @map("last_processed_bridge_created_at")
+
+  @@index([walletId])
+  @@index([lastSyncAt])
+  @@map("transaction_syncs")
+}
+
+model LiquidationAddress {
+  id                     String               @id @default(cuid())
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  bridgeLiquidationId    String               @unique @map("bridge_liquidation_id")
+  profileId              String               @map("profile_id")
+  customerId             String               @map("customer_id")
+  chain                  String
+  address                String
+  currency               String
+  destinationPaymentRail String               @map("destination_payment_rail")
+  destinationCurrency    String               @map("destination_currency")
+  destinationAddress     String               @map("destination_address")
+  state                  String               @default("active")
+  bridgeCreatedAt        DateTime             @map("bridge_created_at")
+  bridgeUpdatedAt        DateTime             @map("bridge_updated_at")
+  walletId               String?              @map("wallet_id")
+  profile                Profile              @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  wallet                 Wallet?              @relation(fields: [walletId], references: [id])
+  liquidation_drains     liquidation_drains[]
+  virtual_accounts       VirtualAccount[]
+
+  @@index([profileId])
+  @@index([customerId])
+  @@index([bridgeLiquidationId])
+  @@index([chain])
+  @@index([state])
+  @@map("liquidation_addresses")
+}
+
+model ExternalAccount {
+  id                      String              @id @default(cuid())
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+  profileId               String              @map("profile_id")
+  customerId              String              @map("customer_id")
+  bridgeExternalAccountId String              @unique @map("bridge_external_account_id")
+  accountType             ExternalAccountType @map("account_type")
+  currency                String              @default("USD")
+  bankName                String?             @map("bank_name")
+  accountOwnerName        String?             @map("account_owner_name")
+  accountOwnerType        CustomerType?       @map("account_owner_type")
+  firstName               String?             @map("first_name")
+  lastName                String?             @map("last_name")
+  businessName            String?             @map("business_name")
+  last4                   String?             @map("last_4")
+  routingNumber           String?             @map("routing_number")
+  checkingOrSavings       CheckingOrSavings?  @map("checking_or_savings")
+  iban                    String?
+  bic                     String?
+  ibanCountry             String?             @map("iban_country")
+  swiftAccountNumber      String?             @map("swift_account_number")
+  swiftBic                String?             @map("swift_bic")
+  swiftCountry            String?             @map("swift_country")
+  streetLine1             String?             @map("street_line_1")
+  streetLine2             String?             @map("street_line_2")
+  city                    String?
+  state                   String?
+  postalCode              String?             @map("postal_code")
+  country                 String?
+  active                  Boolean             @default(true)
+  beneficiaryAddressValid Boolean?            @default(false) @map("beneficiary_address_valid")
+  bridgeCreatedAt         DateTime?           @map("bridge_created_at")
+  bridgeUpdatedAt         DateTime?           @map("bridge_updated_at")
+  bridgeRawData           Json?               @map("bridge_raw_data")
+  clabe_number            String?
+  profile                 Profile             @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@index([customerId])
+  @@index([bridgeExternalAccountId])
+  @@index([accountType])
+  @@index([active])
+  @@map("external_accounts")
+}
+
+model Card {
+  id                String                @id @default(cuid())
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  profileId         String                @map("profile_id")
+  moonCardId        String                @unique @map("moon_card_id")
+  balance           Decimal               @db.Decimal(10, 2)
+  availableBalance  Decimal               @map("available_balance") @db.Decimal(10, 2)
+  expiration        DateTime
+  displayExpiration String                @map("display_expiration")
+  cardProductId     String                @map("card_product_id")
+  pan               String
+  cvv               String
+  supportToken      String                @map("support_token")
+  terminated        Boolean               @default(false)
+  frozen            Boolean               @default(false)
+  isActive          Boolean               @default(true) @map("is_active")
+  balanceAdditions  CardBalanceAddition[]
+  profile           Profile               @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@index([moonCardId])
+  @@index([terminated])
+  @@index([frozen])
+  @@index([isActive])
+  @@map("cards")
+}
+
+model VirtualAccount {
+  id                     String                   @id @default(cuid())
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  bridgeVirtualAccountId String                   @unique @map("bridge_virtual_account_id")
+  profileId              String                   @map("profile_id")
+  customerId             String                   @map("customer_id")
+  accountType            VirtualAccountType       @default(iban) @map("account_type")
+  accountNumber          String                   @map("account_number")
+  routingNumber          String?                  @map("routing_number")
+  bankName               String                   @map("bank_name")
+  bankCode               String?                  @map("bank_code")
+  country                String
+  currency               String                   @default("USD")
+  status                 VirtualAccountStatus     @default(active)
+  isActive               Boolean                  @default(true) @map("is_active")
+  currentBalance         Decimal                  @default(0) @map("current_balance") @db.Decimal(20, 8)
+  availableBalance       Decimal                  @default(0) @map("available_balance") @db.Decimal(20, 8)
+  pendingBalance         Decimal                  @default(0) @map("pending_balance") @db.Decimal(20, 8)
+  description            String?
+  tags                   String[]                 @default([])
+  metadata               Json?
+  bridgeCreatedAt        DateTime                 @map("bridge_created_at")
+  bridgeUpdatedAt        DateTime                 @map("bridge_updated_at")
+  lastActivityAt         DateTime?                @map("last_activity_at")
+  bridgeRawData          Json?                    @map("bridge_raw_data")
+  liquidation_address_id String?
+  activities             VirtualAccountActivity[]
+  liquidation_addresses  LiquidationAddress?      @relation(fields: [liquidation_address_id], references: [bridgeLiquidationId])
+  profile                Profile                  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@index([customerId])
+  @@index([bridgeVirtualAccountId])
+  @@index([accountNumber])
+  @@index([status])
+  @@index([isActive])
+  @@index([country])
+  @@index([currency])
+  @@map("virtual_accounts")
+}
+
+model VirtualAccountActivity {
+  id                     String                       @id @default(cuid())
+  createdAt              DateTime                     @default(now())
+  updatedAt              DateTime                     @updatedAt
+  bridgeActivityId       String                       @unique @map("bridge_activity_id")
+  virtualAccountId       String                       @map("virtual_account_id")
+  customerId             String                       @map("customer_id")
+  type                   VirtualAccountActivityType
+  status                 VirtualAccountActivityStatus @default(pending)
+  amount                 Decimal                      @db.Decimal(20, 8)
+  currency               String                       @default("USD")
+  fee                    Decimal?                     @db.Decimal(20, 8)
+  description            String?
+  reference              String?
+  memo                   String?
+  sourceAccount          String?                      @map("source_account")
+  destinationAccount     String?                      @map("destination_account")
+  sourceName             String?                      @map("source_name")
+  destinationName        String?                      @map("destination_name")
+  balanceBefore          Decimal                      @map("balance_before") @db.Decimal(20, 8)
+  balanceAfter           Decimal                      @map("balance_after") @db.Decimal(20, 8)
+  availableBalanceBefore Decimal                      @map("available_balance_before") @db.Decimal(20, 8)
+  availableBalanceAfter  Decimal                      @map("available_balance_after") @db.Decimal(20, 8)
+  bridgeCreatedAt        DateTime                     @map("bridge_created_at")
+  bridgeUpdatedAt        DateTime                     @map("bridge_updated_at")
+  processedAt            DateTime?                    @map("processed_at")
+  errorCode              String?                      @map("error_code")
+  errorMessage           String?                      @map("error_message")
+  bridgeRawData          Json?                        @map("bridge_raw_data")
+  virtualAccount         VirtualAccount               @relation(fields: [virtualAccountId], references: [id], onDelete: Cascade)
+
+  @@index([virtualAccountId])
+  @@index([customerId])
+  @@index([bridgeActivityId])
+  @@index([type])
+  @@index([status])
+  @@index([bridgeCreatedAt])
+  @@index([processedAt])
+  @@map("virtual_account_activities")
+}
+
+model CardBalanceAddition {
+  id                     String                @id @default(cuid())
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  cardId                 String                @map("card_id")
+  profileId              String                @map("profile_id")
+  amount                 Decimal               @db.Decimal(10, 2)
+  currency               String                @default("USD")
+  source                 BalanceAdditionSource
+  method                 BalanceAdditionMethod @default(automatic)
+  status                 BalanceAdditionStatus @default(pending)
+  processedAt            DateTime?             @map("processed_at")
+  failedAt               DateTime?             @map("failed_at")
+  feeAmount              Decimal?              @map("fee_amount") @db.Decimal(10, 2)
+  feeCurrency            String?               @default("USD") @map("fee_currency")
+  netAmount              Decimal               @map("net_amount") @db.Decimal(10, 2)
+  sourceTransactionId    String?               @map("source_transaction_id")
+  sourceWalletAddress    String?               @map("source_wallet_address")
+  sourceChain            String?               @map("source_chain")
+  sourceCurrency         String?               @map("source_currency")
+  bankAccountNumber      String?               @map("bank_account_number")
+  bankName               String?               @map("bank_name")
+  moonTransactionId      String?               @map("moon_transaction_id")
+  moonResponse           Json?                 @map("moon_response")
+  balanceBefore          Decimal               @map("balance_before") @db.Decimal(10, 2)
+  balanceAfter           Decimal               @map("balance_after") @db.Decimal(10, 2)
+  availableBalanceBefore Decimal               @map("available_balance_before") @db.Decimal(10, 2)
+  availableBalanceAfter  Decimal               @map("available_balance_after") @db.Decimal(10, 2)
+  description            String?
+  notes                  String?
+  tags                   String[]              @default([])
+  errorCode              String?               @map("error_code")
+  errorMessage           String?               @map("error_message")
+  retryCount             Int                   @default(0) @map("retry_count")
+  initiatedBy            String?               @map("initiated_by")
+  approvedBy             String?               @map("approved_by")
+  card                   Card                  @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  profile                Profile               @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([cardId])
+  @@index([profileId])
+  @@index([status])
+  @@index([source])
+  @@index([createdAt])
+  @@index([processedAt])
+  @@index([sourceTransactionId])
+  @@index([moonTransactionId])
+  @@map("card_balance_additions")
+}
+
+model SystemConfig {
+  id             String                @id @default(cuid())
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  key            String                @unique
+  name           String
+  description    String?
+  type           ConfigType
+  status         ConfigStatus          @default(active)
+  value          Json
+  defaultValue   Json?
+  minValue       Json?
+  maxValue       Json?
+  allowedValues  Json?
+  validationRule String?
+  category       String?
+  tags           String[]              @default([])
+  lastModifiedBy String?               @map("last_modified_by")
+  lastModifiedAt DateTime?             @map("last_modified_at")
+  events         Event[]
+  configHistory  SystemConfigHistory[]
+
+  @@index([key])
+  @@index([type])
+  @@index([status])
+  @@index([category])
+  @@map("system_configs")
+}
+
+model SystemConfigHistory {
+  id           String       @id @default(cuid())
+  createdAt    DateTime     @default(now())
+  configId     String       @map("config_id")
+  oldValue     Json?        @map("old_value")
+  newValue     Json         @map("new_value")
+  changeReason String?      @map("change_reason")
+  modifiedBy   String       @map("modified_by")
+  modifiedAt   DateTime     @default(now()) @map("modified_at")
+  config       SystemConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+
+  @@index([configId])
+  @@index([modifiedAt])
+  @@map("system_config_history")
+}
+
+model FeeConfig {
+  id             String             @id @default(cuid())
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  feeType        FeeType            @map("fee_type")
+  name           String
+  description    String?
+  amount         Decimal            @db.Decimal(10, 4)
+  currency       String             @default("USD")
+  feeStructure   String             @default("percentage") @map("fee_structure")
+  minAmount      Decimal?           @map("min_amount") @db.Decimal(10, 2)
+  maxAmount      Decimal?           @map("max_amount") @db.Decimal(10, 2)
+  isActive       Boolean            @default(true) @map("is_active")
+  appliesTo      String[]           @default([]) @map("applies_to")
+  excludedFrom   String[]           @default([]) @map("excluded_from")
+  category       String?
+  tags           String[]           @default([])
+  lastModifiedBy String?            @map("last_modified_by")
+  lastModifiedAt DateTime?          @map("last_modified_at")
+  events         Event[]
+  feeHistory     FeeConfigHistory[]
+
+  @@index([feeType])
+  @@index([isActive])
+  @@index([category])
+  @@map("fee_configs")
+}
+
+model FeeConfigHistory {
+  id           String    @id @default(cuid())
+  createdAt    DateTime  @default(now())
+  feeId        String    @map("fee_id")
+  oldAmount    Decimal?  @map("old_amount") @db.Decimal(10, 4)
+  newAmount    Decimal   @map("new_amount") @db.Decimal(10, 4)
+  oldCurrency  String?   @map("old_currency")
+  newCurrency  String    @map("new_currency")
+  changeReason String?   @map("change_reason")
+  modifiedBy   String    @map("modified_by")
+  modifiedAt   DateTime  @default(now()) @map("modified_at")
+  fee          FeeConfig @relation(fields: [feeId], references: [id], onDelete: Cascade)
+
+  @@index([feeId])
+  @@index([modifiedAt])
+  @@map("fee_config_history")
+}
+
+model CryptoDepositConfig {
+  id                  String                 @id @default(cuid())
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  chainId             String                 @unique @map("chain_id")
+  chainName           String                 @map("chain_name")
+  displayName         String                 @map("display_name")
+  isEnabled           Boolean                @default(true) @map("is_enabled")
+  depositInstructions String                 @map("deposit_instructions")
+  minimumAmount       Decimal?               @map("minimum_amount") @db.Decimal(20, 8)
+  maximumAmount       Decimal?               @map("maximum_amount") @db.Decimal(20, 8)
+  networkFee          Decimal?               @map("network_fee") @db.Decimal(20, 8)
+  processingTime      String                 @map("processing_time")
+  riskLevel           RiskLevel              @default(low) @map("risk_level")
+  iconUrl             String?                @map("icon_url")
+  explorerUrl         String?                @map("explorer_url")
+  supportedTokens     Json                   @default("[]") @map("supported_tokens")
+  lastModifiedBy      String?                @map("last_modified_by")
+  lastModifiedAt      DateTime?              @map("last_modified_at")
+  depositHistory      CryptoDepositHistory[]
+
+  @@index([chainId])
+  @@index([isEnabled])
+  @@index([riskLevel])
+  @@map("crypto_deposit_configs")
+}
+
+model CryptoDepositHistory {
+  id           String              @id @default(cuid())
+  createdAt    DateTime            @default(now())
+  configId     String              @map("config_id")
+  changeType   String              @map("change_type")
+  oldValues    Json?               @map("old_values")
+  newValues    Json                @map("new_values")
+  changeReason String?             @map("change_reason")
+  modifiedBy   String              @map("modified_by")
+  modifiedAt   DateTime            @default(now()) @map("modified_at")
+  config       CryptoDepositConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+
+  @@index([configId])
+  @@index([modifiedAt])
+  @@index([changeType])
+  @@map("crypto_deposit_history")
+}
+
+model DepositQrRequest {
+  id                String          @id @default(cuid())
+  profileId         String          @map("profile_id")
+  bridgeCustomerId  String          @map("bridge_customer_id")
+  targetWalletId    String          @map("target_wallet_id")
+  qrReferenceId     String          @unique @map("qr_reference_id")
+  amountBs          Decimal         @map("amount_bs") @db.Decimal(12, 2)
+  amountUsd         Decimal         @map("amount_usd") @db.Decimal(12, 6)
+  exchangeRate      Decimal         @map("exchange_rate") @db.Decimal(10, 4)
+  status            QrDepositStatus @default(PENDING)
+  priority          QrPriority      @default(HIGH)
+  verificationCount Int             @default(0) @map("verification_count")
+  lastVerifiedAt    DateTime?       @map("last_verified_at")
+  expiresAt         DateTime        @map("expires_at")
+  paidAt            DateTime?       @map("paid_at")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  metadata          Json?
+  bank_name         String?
+  bank_reference    String?
+  conversion_rate   Decimal         @db.Decimal(10, 6)
+  fee_amount        Decimal?        @db.Decimal(12, 6)
+  profile           Profile         @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  targetWallet      Wallet          @relation(fields: [targetWalletId], references: [id])
+
+  @@index([status, priority, lastVerifiedAt])
+  @@index([profileId, status])
+  @@index([qrReferenceId])
+  @@map("deposit_qr_requests")
+}
+
+model QrAnalytics {
+  id                String   @id @default(cuid())
+  date              DateTime @unique @db.Date
+  totalGenerated    Int      @default(0) @map("total_generated")
+  totalPaid         Int      @default(0) @map("total_paid")
+  avgPaymentTimeMin Int?     @map("avg_payment_time_min")
+  successRate       Decimal? @map("success_rate") @db.Decimal(5, 4)
+  apiCallsCount     Int      @default(0) @map("api_calls_count")
+  avgResponseTimeMs Int?     @map("avg_response_time_ms")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  avg_amount_usd    Decimal? @db.Decimal(10, 6)
+  total_amount_bs   Decimal? @db.Decimal(15, 2)
+  total_amount_usd  Decimal? @db.Decimal(15, 6)
+  unique_users      Int?     @default(0)
+
+  @@map("qr_analytics")
+}
+
+model bridge_webhook_logs {
+  id            String    @id
+  event_type    String
+  event_id      String    @unique
+  customer_id   String?
+  payload       Json
+  processed_at  DateTime?
+  status        String    @default("pending")
+  error_message String?
+  createdAt     DateTime  @default(now())
+
+  @@index([customer_id])
+  @@index([event_type])
+  @@index([status])
+}
+
+model liquidation_drains {
+  id                       String             @id
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime
+  bridge_drain_id          String             @unique
+  liquidation_address_id   String
+  customer_id              String
+  amount                   String
+  currency                 String
+  destination_address      String
+  chain                    String
+  transaction_hash         String?
+  state                    String
+  bridge_created_at        DateTime
+  bridge_updated_at        DateTime
+  fee_amount               String?
+  fee_currency             String?
+  destination_payment_rail String?
+  destination_currency     String?
+  bridge_raw_data          Json?
+  liquidation_addresses    LiquidationAddress @relation(fields: [liquidation_address_id], references: [bridgeLiquidationId])
+
+  @@index([bridge_created_at])
+  @@index([bridge_drain_id])
+  @@index([customer_id])
+  @@index([liquidation_address_id])
+  @@index([state])
+}
+
+model qr_generation_logs {
+  id               String             @id
+  user_id          String
+  profile_id       String
+  wallet_id        String
+  transfer_id      String             @unique
+  qr_alias         String             @unique
+  usd_amount       Decimal            @db.Decimal(12, 6)
+  bob_amount       Decimal            @db.Decimal(12, 2)
+  exchange_rate    Decimal            @db.Decimal(10, 4)
+  description      String?
+  wallet_address   String
+  wallet_name      String?
+  expiration_hours Int                @default(24)
+  status           QrGenerationStatus @default(PENDING)
+  qr_image_data    String?
+  expires_at       DateTime
+  paid_at          DateTime?
+  cancelled_at     DateTime?
+  generated_at     DateTime           @default(now())
+  created_at       DateTime           @default(now())
+  updated_at       DateTime
+  metadata         Json?
+
+  @@index([expires_at])
+  @@index([generated_at])
+  @@index([profile_id])
+  @@index([qr_alias])
+  @@index([status])
+  @@index([transfer_id])
+  @@index([user_id])
+  @@index([wallet_id])
+}
+
+model transfer_sync_status {
+  id              String             @id
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime
+  profile_id      String
+  source_type     TransferSyncSource
+  source_id       String
+  last_sync_at    DateTime
+  last_sync_count Int                @default(0)
+  sync_status     String             @default("success")
+  error_message   String?
+  next_page_token String?
+  profiles        Profile            @relation(fields: [profile_id], references: [id])
+
+  @@unique([profile_id, source_type, source_id])
+  @@index([last_sync_at])
+  @@index([profile_id])
+  @@index([source_type])
+  @@index([sync_status])
+}
+
+model user_preferences {
+  id                  String   @id
+  profile_id          String   @unique
+  defaultWalletView   String   @default("consolidated")
+  preferred_language  String   @default("es")
+  preferred_currency  String   @default("USD")
+  push_notifications  Boolean  @default(true)
+  email_notifications Boolean  @default(true)
+  transaction_alerts  Boolean  @default(true)
+  require_pin_on_open Boolean  @default(false)
+  session_timeout     Int      @default(300)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime
+  profiles            Profile  @relation(fields: [profile_id], references: [id], onDelete: Cascade)
+}
+
+model user_sessions {
+  id            String   @id
+  profile_id    String
+  session_token String   @unique
+  device_id     String
+  device_type   String
+  is_active     Boolean  @default(true)
+  last_activity DateTime
+  expires_at    DateTime
+  createdAt     DateTime @default(now())
+  profiles      Profile  @relation(fields: [profile_id], references: [id], onDelete: Cascade)
+
+  @@index([profile_id])
+  @@index([session_token])
 }
 
 enum WalletChain {
@@ -45,8 +850,8 @@ enum WalletTag {
 
 enum UserRole {
   USER
-  ADMIN
   SUPERADMIN
+  ADMIN
 }
 
 enum UserStatus {
@@ -73,19 +878,19 @@ enum CustomerType {
 }
 
 enum ExpectedMonthlyPaymentsUSD {
-  zero_4999 // $0 - $4,999
-  five_thousand_9999 // $5,000 - $9,999
-  ten_thousand_49999 // $10,000 - $49,999
-  fifty_thousand_plus // $50,000+
+  zero_4999
+  five_thousand_9999
+  ten_thousand_49999
+  fifty_thousand_plus
 }
 
 enum EmploymentStatus {
-  employed // Employed
-  homemaker // Homemaker
-  retired // Retired
-  self_employed // Self Employed
-  student // Student
-  unemployed // Unemployed
+  employed
+  homemaker
+  retired
+  self_employed
+  student
+  unemployed
 }
 
 enum AccountPurpose {
@@ -113,18 +918,17 @@ enum SourceOfFunds {
 }
 
 enum DocumentType {
-  drivers_license // Driver's License
-  matriculate_id // Matriculate ID
-  military_id // Military ID
-  national_id // National ID
-  passport // Passport
-  permanent_residency_id // Permanent Residency ID
-  state_or_provisional_id // State or Provisional ID
-  visa // Visa
+  drivers_license
+  matriculate_id
+  military_id
+  national_id
+  passport
+  permanent_residency_id
+  state_or_provisional_id
+  visa
 }
 
 enum DocumentPurpose {
-  // Note: This enum is used as an array of strings in the application
   proof_of_account_purpose
   proof_of_address
   proof_of_individual_name_change
@@ -161,7 +965,7 @@ enum EventType {
   USER_KYC_APPROVED
   USER_KYC_REJECTED
   USER_WALLET_CREATED
-  USER_CARD_CREATED // Added for card tracking
+  USER_CARD_CREATED
   SYSTEM_CONFIG_UPDATED
   SYSTEM_CONFIG_CREATED
   SYSTEM_CONFIG_DELETED
@@ -196,533 +1000,17 @@ enum ConfigStatus {
   deprecated
 }
 
-model Profile {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Basic Information (for all users)
-  email     String? @unique // From Supabase auth
-  firstName String? @map("first_name") // Basic name for all users
-  lastName  String? @map("last_name") // Basic name for all users
-
-  // User Management
-  status  UserStatus @default(active)
-  role    UserRole   @default(USER)
-  userTag String?    @unique @map("user_tag")
-
-  // Relations
-  kycProfile           KYCProfile? // Only for USER role - Bridge Protocol integration
-  events               Event[] // Track user events
-  wallets              Wallet[] // User's blockchain wallets
-  liquidationAddresses LiquidationAddress[] // User's liquidation addresses
-  cards                Card[] // User's PayWithMoon debit cards (USER role only)
-  cardBalanceAdditions CardBalanceAddition[] // User's card balance additions
-  externalAccounts     ExternalAccount[] // User's bank external accounts (US/EU via Bridge)
-  virtualAccounts      VirtualAccount[] // User's Bridge.xyz virtual accounts
-  DepositQrRequest     DepositQrRequest[]
-
-  @@index([userId])
-  @@index([status])
-  @@index([role])
-  @@index([email])
-  @@map("profiles")
-}
-
-model KYCProfile {
-  id        String   @id @default(cuid())
-  profileId String   @unique @map("profile_id")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Bridge.xyz Integration
-  bridgeCustomerId String?      @unique @map("bridge_customer_id")
-  customerType     CustomerType @default(individual) @map("customer_type")
-
-  // Personal Information (Required for Bridge Protocol)
-  firstName   String?   @map("first_name") // string length between 2 and 1024
-  middleName  String?   @map("middle_name") // string length between 2 and 1024
-  lastName    String?   @map("last_name") // string length between 2 and 1024
-  email       String?   @unique // string length between 2 and 1024
-  phone       String? // Format: +12223334444 // string length between 2 and 1024
-  birthDate   DateTime? @map("birth_date") // string between 10 and 10 characters in format yyyy-mm-dd, must be at least 18 years old
-  nationality String? // ISO 3166-1 three-character country code // string length between 2 and 1024
-
-  // Bridge Protocol Verification Status
-  kycStatus          KYCStatus @default(not_started) @map("kyc_status")
-  kycSubmittedAt     DateTime? @map("kyc_submitted_at")
-  kycApprovedAt      DateTime? @map("kyc_approved_at")
-  kycRejectedAt      DateTime? @map("kyc_rejected_at")
-  kycRejectionReason String?   @map("kyc_rejection_reason")
-  signedAgreementId  String?   @map("signed_agreement_id") // this is only for bridge's production environment
-
-  // Verification Timestamps
-  verifiedSelfieAt               DateTime? @map("verified_selfie_at")
-  completedCustomerSafetyCheckAt DateTime? @map("completed_customer_safety_check_at")
-
-  // High Risk Fields (Required for high risk customers)
-  accountPurpose             AccountPurpose?             @map("account_purpose")
-  accountPurposeOther        String?                     @map("account_purpose_other")
-  employmentStatus           EmploymentStatus?           @map("employment_status")
-  expectedMonthlyPaymentsUsd ExpectedMonthlyPaymentsUSD? @map("expected_monthly_payments_usd")
-  mostRecentOccupation       String?                     @map("most_recent_occupation")
-  // actingAsIntermediary Boolean?      @map("acting_as_intermediary") // assume false always for now
-  // sourceOfFunds SourceOfFunds?       @map("source_of_funds") // assume unnecessary for now, as we wont provide services for restricted countries
-
-  // Bridge Protocol Response Fields
-  payinCrypto               CapabilityStatus? @default(pending) @map("payin_crypto")
-  payoutCrypto              CapabilityStatus? @default(pending) @map("payout_crypto")
-  payinFiat                 CapabilityStatus? @default(pending) @map("payin_fiat")
-  payoutFiat                CapabilityStatus? @default(pending) @map("payout_fiat")
-  futureRequirementsDue     String[]          @default([]) @map("future_requirements_due")
-  requirementsDue           String[]          @default([]) @map("requirements_due")
-  hasAcceptedTermsOfService Boolean?          @default(false) @map("has_accepted_terms_of_service")
-
-  // Bridge Protocol Debug Data
-  bridgeRawRequest  Json? @map("bridge_raw_request") // Full Bridge Protocol API request for debugging
-  bridgeRawResponse Json? @map("bridge_raw_response") // Full Bridge Protocol API response for debugging
-
-  // Relations
-  profile          Profile                  @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  address          Address? // One-to-one relationship
-  identifyingInfo  IdentifyingInformation[]
-  documents        Document[]
-  rejectionReasons RejectionReason[]
-  endorsements     Endorsement[]
-
-  @@index([kycStatus])
-  @@index([bridgeCustomerId])
-  @@map("kyc_profiles")
-}
-
-model Address {
-  id           String   @id @default(cuid())
-  kycProfileId String   @unique @map("kyc_profile_id") // Changed to unique for one-to-one
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  // Required Address Fields
-  streetLine1 String @map("street_line_1") // string length between 2 and 1024
-  city        String // string length between 2 and 1024
-  country     String // ISO 3166-1 three-character country code // string length between 2 and 1024
-
-  // Optional Address Fields
-  streetLine2 String? @map("street_line_2") // string length between 2 and 1024
-  subdivision String? // ISO 3166-2 subdivision code (for US addresses) // string length between 2 and 1024
-  postalCode  String? @map("postal_code") // string length between 2 and 1024
-
-  // Relations
-  kycProfile KYCProfile @relation(fields: [kycProfileId], references: [id], onDelete: Cascade)
-
-  @@map("addresses")
-}
-
-model Document {
-  id           String   @id @default(cuid())
-  kycProfileId String   @map("kyc_profile_id")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  // Document Information
-  purposes    DocumentPurpose[] // Array of purposes
-  fileUrl     String?           @map("file_url") // Base64 encoded file or URL, max size 24 MB, valid types: .pdf, .jpeg, .jpg, .png, .heic, .tif
-  fileSize    Int?              @map("file_size") // Size in bytes
-  description String?
-
-  // Relations
-  kycProfile KYCProfile @relation(fields: [kycProfileId], references: [id], onDelete: Cascade)
-
-  @@index([kycProfileId])
-  @@map("documents")
-}
-
-model IdentifyingInformation {
-  id           String   @id @default(cuid())
-  kycProfileId String   @map("kyc_profile_id")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  // Document Information
-  type           DocumentType @map("document_type")
-  issuingCountry String       @map("issuing_country") // ISO 3166-1 three-character country code
-  number         String? // Document number
-  description    String? // Description when type is "other"
-  expiration     DateTime? // Expiration date (yyyy-mm-dd)
-
-  // Document Images
-  imageFront String? @map("image_front") // Base64 encoded image, max 24 MB, min 200x200px, valid types: .pdf, .jpeg, .jpg, .png, .heic, .tif
-  imageBack  String? @map("image_back") // Base64 encoded image, max 24 MB, min 200x200px, valid types: .pdf, .jpeg, .jpg, .png, .heic, .tif
-
-  // Relations
-  kycProfile KYCProfile @relation(fields: [kycProfileId], references: [id], onDelete: Cascade)
-
-  @@index([kycProfileId])
-  @@index([type])
-  @@map("identifying_information")
-}
-
-model RejectionReason {
-  id           String   @id @default(cuid())
-  kycProfileId String   @map("kyc_profile_id")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  // Bridge Protocol Response Fields
-  developerReason String    @map("developer_reason")
-  reason          String
-  bridgeCreatedAt DateTime? @map("bridge_created_at")
-
-  // Relations
-  kycProfile KYCProfile @relation(fields: [kycProfileId], references: [id], onDelete: Cascade)
-
-  @@index([kycProfileId])
-  @@map("rejection_reasons")
-}
-
-model Endorsement {
-  id           String   @id @default(cuid())
-  kycProfileId String   @map("kyc_profile_id")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  // Bridge Protocol Response Fields
-  name   EndorsementType   @map("endorsement_type")
-  status EndorsementStatus @default(incomplete)
-
-  // Requirements object from Bridge API response
-  requirements Json? // Contains: issues[], missing, pending[], complete[]
-
-  // Relations
-  kycProfile KYCProfile @relation(fields: [kycProfileId], references: [id], onDelete: Cascade)
-
-  @@index([kycProfileId])
-  @@index([name])
-  @@map("endorsements")
-}
-
-model Event {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Event Information
-  type        EventType
-  module      EventModule
-  description String? // Optional description for additional context
-
-  // User Reference
-  profileId String @map("profile_id")
-
-  // Optional System Configuration References
-  systemConfigId String? @map("system_config_id")
-  feeConfigId    String? @map("fee_config_id")
-
-  // Metadata
-  metadata Json? // Flexible field for additional event data
-
-  // Relations
-  profile      Profile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  systemConfig SystemConfig? @relation(fields: [systemConfigId], references: [id])
-  feeConfig    FeeConfig?    @relation(fields: [feeConfigId], references: [id])
-
-  @@index([profileId])
-  @@index([type])
-  @@index([module])
-  @@index([createdAt])
-  @@index([systemConfigId])
-  @@index([feeConfigId])
-  @@map("events")
-}
-
-model Wallet {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Internal Wallet Management
-  profileId String    @map("profile_id")
-  walletTag WalletTag @default(general_use) @map("wallet_tag")
-  isActive  Boolean   @default(true) @map("is_active")
-
-  // Bridge API Integration
-  bridgeWalletId String      @unique @map("bridge_wallet_id") // Bridge API wallet ID
-  chain          WalletChain
-  address        String
-  bridgeTags     String[]    @default([]) @map("bridge_tags") // Tags from Bridge API
-
-  // Public Identifier and UI Customization
-  // Generation for `peyoWalletId` is handled in Supabase (SQL function/trigger)
-  peyoWalletId String? @unique @map("peyo_wallet_id")
-  walletName   String  @default("Mi Billetera Principal") @map("wallet_name")
-  walletColor  String  @default("#6366F1") @map("wallet_color")
-  walletIcon   String  @default("wallet") @map("wallet_icon")
-
-  // Bridge Protocol Timestamps
-  bridgeCreatedAt DateTime? @map("bridge_created_at")
-  bridgeUpdatedAt DateTime? @map("bridge_updated_at")
-
-  // Relations
-  profile              Profile              @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  transactions         Transaction[] // One-to-many relationship with transactions
-  sentTransactions     Transaction[]        @relation("TransactionSenderWallet")
-  receivedTransactions Transaction[]        @relation("TransactionRecipientWallet")
-  liquidationAddresses LiquidationAddress[] // One-to-many relationship with liquidation addresses
-  DepositQrRequest     DepositQrRequest[]
-
-  @@index([profileId])
-  @@index([bridgeWalletId])
-  @@index([address])
-  @@map("wallets")
-}
-
-model Transaction {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Bridge API Transaction Data
-  bridgeTransactionId String @unique @map("bridge_transaction_id") // Unique identifier from Bridge API
-  walletId            String @map("wallet_id")
-
-  // Participants (Peyo internal transfers)
-  senderWalletId    String? @map("sender_wallet_id")
-  recipientWalletId String? @map("recipient_wallet_id")
-
-  // Transaction Details
-  amount       String // Amount as string (from Bridge API)
-  developerFee String? @map("developer_fee") // Fee as string (from Bridge API)
-  customerId   String  @map("customer_id") // Bridge customer ID
-
-  // Source Information
-  sourcePaymentRail String? @map("source_payment_rail") // e.g., "solana", "base", etc.
-  sourceCurrency    String? @map("source_currency") // e.g., "usdc", "usdt", etc.
-
-  // Destination Information  
-  destinationPaymentRail String? @map("destination_payment_rail") // e.g., "solana", "base", etc.
-  destinationCurrency    String? @map("destination_currency") // e.g., "usdc", "usdt", etc.
-
-  // Timestamps from Bridge API
-  bridgeCreatedAt DateTime @map("bridge_created_at")
-  bridgeUpdatedAt DateTime @map("bridge_updated_at")
-
-  // Raw Bridge API Response (for debugging/future use)
-  bridgeRawData Json? @map("bridge_raw_data")
-
-  // Relations
-  wallet          Wallet  @relation(fields: [walletId], references: [id], onDelete: Cascade)
-  senderWallet    Wallet? @relation("TransactionSenderWallet", fields: [senderWalletId], references: [id])
-  recipientWallet Wallet? @relation("TransactionRecipientWallet", fields: [recipientWalletId], references: [id])
-
-  @@index([walletId])
-  @@index([bridgeTransactionId])
-  @@index([customerId])
-  @@index([bridgeCreatedAt])
-  @@index([senderWalletId])
-  @@index([recipientWalletId])
-  @@map("transactions")
-}
-
-model TransactionSync {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Sync Tracking
-  walletId                 String   @map("wallet_id")
-  lastSyncAt               DateTime @map("last_sync_at")
-  lastSyncTransactionCount Int      @default(0) @map("last_sync_transaction_count")
-  newTransactionsFound     Int      @default(0) @map("new_transactions_found")
-
-  // Sync Status
-  syncStatus   String  @default("success") @map("sync_status") // success, error, partial
-  errorMessage String? @map("error_message")
-
-  // Bridge API Pagination Info
-  lastProcessedBridgeCreatedAt DateTime? @map("last_processed_bridge_created_at")
-
-  @@index([walletId])
-  @@index([lastSyncAt])
-  @@map("transaction_syncs")
-}
-
-model LiquidationAddress {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Bridge API Liquidation Address Data
-  bridgeLiquidationId String  @unique @map("bridge_liquidation_id") // Bridge API liquidation address ID
-  profileId           String  @map("profile_id") // Reference to Profile
-  walletId            String? @map("wallet_id") // Reference to Wallet
-  customerId          String  @map("customer_id") // Bridge customer ID
-
-  // Liquidation Address Details
-  chain    String // Source chain (e.g., "polygon")
-  address  String // Source address for liquidation
-  currency String // Source currency (e.g., "usdc")
-
-  // Destination Information
-  destinationPaymentRail String @map("destination_payment_rail") // Destination chain (e.g., "solana")
-  destinationCurrency    String @map("destination_currency") // Destination currency (e.g., "usdc")
-  destinationAddress     String @map("destination_address") // Destination wallet address
-
-  // Bridge Protocol Status
-  state String @default("active") // active, inactive, etc.
-
-  // Bridge Protocol Timestamps
-  bridgeCreatedAt DateTime @map("bridge_created_at")
-  bridgeUpdatedAt DateTime @map("bridge_updated_at")
-
-  // Relations
-  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  wallet  Wallet? @relation(fields: [walletId], references: [id])
-
-  @@index([profileId])
-  @@index([customerId])
-  @@index([bridgeLiquidationId])
-  @@index([chain])
-  @@index([state])
-  @@map("liquidation_addresses")
-}
-
-// ===========================================
-// EXTERNAL BANK ACCOUNTS (BRIDGE) MODELS
-// ===========================================
-//
-// Purpose: Allow users to save their bank accounts (similar to Binance)
-// using Bridge.xyz External Accounts for US (ACH) and EU (IBAN/SWIFT).
-//
-// Reference:
-// - Create: /customers/{customerID}/external_accounts (POST)
-// - List:   /customers/{customerID}/external_accounts (GET)
-// ===========================================
-
 enum ExternalAccountType {
-  us // US bank account (account + routing, checking_or_savings)
-  iban // IBAN-based account (EU/SEPA)
-  swift // SWIFT-based account (international)
+  us
+  iban
+  swift
+  clabe
 }
 
 enum CheckingOrSavings {
   checking
   savings
 }
-
-model ExternalAccount {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Ownership and linkage
-  profileId               String @map("profile_id")
-  customerId              String @map("customer_id") // Bridge customer ID (from KYC profile)
-  bridgeExternalAccountId String @unique @map("bridge_external_account_id") // Bridge External Account ID (ea_*)
-
-  // General account info (common)
-  accountType      ExternalAccountType @map("account_type")
-  currency         String              @default("USD")
-  bankName         String?             @map("bank_name")
-  accountOwnerName String?             @map("account_owner_name")
-  accountOwnerType CustomerType?       @map("account_owner_type") // individual | business (reuse CustomerType)
-  firstName        String?             @map("first_name")
-  lastName         String?             @map("last_name")
-  businessName     String?             @map("business_name")
-
-  // US account fields (returned by Bridge in `account` object)
-  last4             String?            @map("last_4")
-  routingNumber     String?            @map("routing_number")
-  checkingOrSavings CheckingOrSavings? @map("checking_or_savings")
-
-  // IBAN/EU fields
-  iban        String? // IBAN (store masked/validated per app policy)
-  bic         String? // Bank Identifier Code
-  ibanCountry String? @map("iban_country") // ISO country for IBAN
-
-  // SWIFT account additional fields (optional, for flexibility)
-  swiftAccountNumber String? @map("swift_account_number")
-  swiftBic           String? @map("swift_bic")
-  swiftCountry       String? @map("swift_country")
-
-  // Beneficiary address (Bridge may validate US addresses)
-  streetLine1 String? @map("street_line_1")
-  streetLine2 String? @map("street_line_2")
-  city        String?
-  state       String? // US state or region
-  postalCode  String? @map("postal_code")
-  country     String? // ISO country code
-
-  // Status flags from Bridge
-  active                  Boolean  @default(true)
-  beneficiaryAddressValid Boolean? @default(false) @map("beneficiary_address_valid")
-
-  // Bridge protocol timestamps and raw payload
-  bridgeCreatedAt DateTime? @map("bridge_created_at")
-  bridgeUpdatedAt DateTime? @map("bridge_updated_at")
-  bridgeRawData   Json?     @map("bridge_raw_data")
-
-  // Relations
-  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-
-  @@index([profileId])
-  @@index([customerId])
-  @@index([bridgeExternalAccountId])
-  @@index([accountType])
-  @@index([active])
-  @@map("external_accounts")
-}
-
-model Card {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // PayWithMoon Integration (USER profiles only)
-  profileId  String @map("profile_id")
-  moonCardId String @unique @map("moon_card_id") // PayWithMoon card ID
-
-  // Card Financial Information
-  balance          Decimal @db.Decimal(10, 2) // Current balance
-  availableBalance Decimal @map("available_balance") @db.Decimal(10, 2) // Available balance
-
-  // Card Details
-  expiration        DateTime // Full expiration timestamp from PayWithMoon
-  displayExpiration String   @map("display_expiration") // Display format like "12/24"
-  cardProductId     String   @map("card_product_id") // PayWithMoon card product ID
-
-  // Sensitive Card Information (encrypted at application level)
-  pan          String // Primary Account Number (card number) - should be encrypted
-  cvv          String // Card Verification Value - should be encrypted
-  supportToken String @map("support_token") // PayWithMoon support token
-
-  // Card Status
-  terminated Boolean @default(false) // If card is terminated
-  frozen     Boolean @default(false) // If card is frozen
-  isActive   Boolean @default(true) @map("is_active") // Our internal status flag
-
-  // Relations
-  profile          Profile               @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  balanceAdditions CardBalanceAddition[] // Track all balance additions to this card
-
-  @@index([profileId])
-  @@index([moonCardId])
-  @@index([terminated])
-  @@index([frozen])
-  @@index([isActive])
-  @@map("cards")
-}
-
-// ===========================================
-// VIRTUAL ACCOUNTS MODELS
-// ===========================================
-//
-// Purpose: Manage Bridge.xyz Virtual Accounts (Virtual IBANs)
-// including account details, status, and activity tracking.
-//
-// Access: USER role can view their own virtual accounts
-// ADMIN and SUPERADMIN can view all virtual accounts
-//
-// ===========================================
 
 enum VirtualAccountStatus {
   active
@@ -752,133 +1040,6 @@ enum VirtualAccountActivityStatus {
   cancelled
 }
 
-model VirtualAccount {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Bridge API Virtual Account Data
-  bridgeVirtualAccountId String @unique @map("bridge_virtual_account_id") // Bridge API virtual account ID
-  profileId              String @map("profile_id") // Reference to Profile
-  customerId             String @map("customer_id") // Bridge customer ID
-
-  // Account Information
-  accountType   VirtualAccountType @default(iban) @map("account_type")
-  accountNumber String             @map("account_number") // IBAN, account number, or routing number
-  routingNumber String?            @map("routing_number") // For US accounts
-  bankName      String             @map("bank_name") // Bank name
-  bankCode      String?            @map("bank_code") // Bank code/SWIFT
-  country       String // ISO country code
-
-  // Account Details
-  currency String               @default("USD") // Account currency
-  status   VirtualAccountStatus @default(active)
-  isActive Boolean              @default(true) @map("is_active") // Our internal status flag
-
-  // Balance Information
-  currentBalance   Decimal @default(0) @map("current_balance") @db.Decimal(20, 8)
-  availableBalance Decimal @default(0) @map("available_balance") @db.Decimal(20, 8)
-  pendingBalance   Decimal @default(0) @map("pending_balance") @db.Decimal(20, 8)
-
-  // Account Metadata
-  description String? // Optional description
-  tags        String[] @default([]) // For categorization
-  metadata    Json? // Additional Bridge API data
-
-  // Bridge Protocol Timestamps
-  bridgeCreatedAt DateTime  @map("bridge_created_at")
-  bridgeUpdatedAt DateTime  @map("bridge_updated_at")
-  lastActivityAt  DateTime? @map("last_activity_at")
-
-  // Raw Bridge API Response (for debugging/future use)
-  bridgeRawData Json? @map("bridge_raw_data")
-
-  // Relations
-  profile    Profile                  @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  activities VirtualAccountActivity[] // One-to-many relationship with activities
-
-  @@index([profileId])
-  @@index([customerId])
-  @@index([bridgeVirtualAccountId])
-  @@index([accountNumber])
-  @@index([status])
-  @@index([isActive])
-  @@index([country])
-  @@index([currency])
-  @@map("virtual_accounts")
-}
-
-model VirtualAccountActivity {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Bridge API Activity Data
-  bridgeActivityId String @unique @map("bridge_activity_id") // Bridge API activity ID
-  virtualAccountId String @map("virtual_account_id")
-  customerId       String @map("customer_id") // Bridge customer ID
-
-  // Activity Information
-  type     VirtualAccountActivityType
-  status   VirtualAccountActivityStatus @default(pending)
-  amount   Decimal                      @db.Decimal(20, 8) // Transaction amount
-  currency String                       @default("USD") // Transaction currency
-  fee      Decimal?                     @db.Decimal(20, 8) // Fee amount if applicable
-
-  // Transaction Details
-  description String? // Transaction description
-  reference   String? // External reference number
-  memo        String? // Transaction memo
-
-  // Source/Destination Information
-  sourceAccount      String? @map("source_account") // Source account details
-  destinationAccount String? @map("destination_account") // Destination account details
-  sourceName         String? @map("source_name") // Name of sender
-  destinationName    String? @map("destination_name") // Name of recipient
-
-  // Balance Impact
-  balanceBefore          Decimal @map("balance_before") @db.Decimal(20, 8)
-  balanceAfter           Decimal @map("balance_after") @db.Decimal(20, 8)
-  availableBalanceBefore Decimal @map("available_balance_before") @db.Decimal(20, 8)
-  availableBalanceAfter  Decimal @map("available_balance_after") @db.Decimal(20, 8)
-
-  // Timestamps
-  bridgeCreatedAt DateTime  @map("bridge_created_at")
-  bridgeUpdatedAt DateTime  @map("bridge_updated_at")
-  processedAt     DateTime? @map("processed_at") // When the activity was processed
-
-  // Error Information
-  errorCode    String? @map("error_code") // Error code if failed
-  errorMessage String? @map("error_message") // Error message if failed
-
-  // Raw Bridge API Response (for debugging/future use)
-  bridgeRawData Json? @map("bridge_raw_data")
-
-  // Relations
-  virtualAccount VirtualAccount @relation(fields: [virtualAccountId], references: [id], onDelete: Cascade)
-
-  @@index([virtualAccountId])
-  @@index([customerId])
-  @@index([bridgeActivityId])
-  @@index([type])
-  @@index([status])
-  @@index([bridgeCreatedAt])
-  @@index([processedAt])
-  @@map("virtual_account_activities")
-}
-
-// ===========================================
-// CARD BALANCE ADDITION MODEL
-// ===========================================
-//
-// Purpose: Track all balance additions to PayWithMoon cards
-// including source of funds, amounts, fees, and processing status.
-//
-// Access: ADMIN and SUPERADMIN roles can view these records
-// USER role can only view their own balance additions
-//
-// ===========================================
-
 enum BalanceAdditionStatus {
   pending
   processing
@@ -904,383 +1065,39 @@ enum BalanceAdditionMethod {
   dashboard
 }
 
-model CardBalanceAddition {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Card Reference
-  cardId    String @map("card_id")
-  profileId String @map("profile_id") // Redundant but useful for queries
-
-  // Addition Details
-  amount   Decimal               @db.Decimal(10, 2) // Amount being added
-  currency String                @default("USD") // Currency of the addition
-  source   BalanceAdditionSource // Source of the funds
-  method   BalanceAdditionMethod @default(automatic) // How the addition was initiated
-
-  // Processing Information
-  status      BalanceAdditionStatus @default(pending)
-  processedAt DateTime?             @map("processed_at") // When the addition was actually processed
-  failedAt    DateTime?             @map("failed_at") // When the addition failed (if applicable)
-
-  // Fee Information
-  feeAmount   Decimal? @map("fee_amount") @db.Decimal(10, 2) // Fee charged for this addition
-  feeCurrency String?  @default("USD") @map("fee_currency") // Currency of the fee
-  netAmount   Decimal  @map("net_amount") @db.Decimal(10, 2) // Amount after fees (amount - feeAmount)
-
-  // Source Transaction Details (for crypto deposits, bank transfers, etc.)
-  sourceTransactionId String? @map("source_transaction_id") // External transaction ID
-  sourceWalletAddress String? @map("source_wallet_address") // For crypto deposits
-  sourceChain         String? @map("source_chain") // For crypto deposits
-  sourceCurrency      String? @map("source_currency") // For crypto deposits
-  bankAccountNumber   String? @map("bank_account_number") // For bank transfers (masked)
-  bankName            String? @map("bank_name") // For bank transfers
-
-  // PayWithMoon Integration
-  moonTransactionId String? @map("moon_transaction_id") // PayWithMoon transaction ID
-  moonResponse      Json?   @map("moon_response") // Full PayWithMoon API response
-
-  // Balance Tracking
-  balanceBefore          Decimal @map("balance_before") @db.Decimal(10, 2) // Card balance before addition
-  balanceAfter           Decimal @map("balance_after") @db.Decimal(10, 2) // Card balance after addition
-  availableBalanceBefore Decimal @map("available_balance_before") @db.Decimal(10, 2) // Available balance before
-  availableBalanceAfter  Decimal @map("available_balance_after") @db.Decimal(10, 2) // Available balance after
-
-  // Metadata and Notes
-  description String? // Human-readable description
-  notes       String? // Internal notes
-  tags        String[] @default([]) // For categorization
-
-  // Error Information
-  errorCode    String? @map("error_code") // Error code if failed
-  errorMessage String? @map("error_message") // Error message if failed
-  retryCount   Int     @default(0) @map("retry_count") // Number of retry attempts
-
-  // Audit Information
-  initiatedBy String? @map("initiated_by") // Profile ID of who initiated (if manual)
-  approvedBy  String? @map("approved_by") // Profile ID of who approved (if required)
-
-  // Relations
-  card    Card    @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-
-  @@index([cardId])
-  @@index([profileId])
-  @@index([status])
-  @@index([source])
-  @@index([createdAt])
-  @@index([processedAt])
-  @@index([sourceTransactionId])
-  @@index([moonTransactionId])
-  @@map("card_balance_additions")
-}
-
-// ===========================================
-// SYSTEM CONFIGURATION MODELS
-// ===========================================
-//
-// Purpose: Manage configurable system settings including fees,
-// limits, feature flags, and integration settings that can be
-// modified from the dashboard without code changes.
-//
-// Access: Only SUPERADMIN and ADMIN roles can modify these settings
-//
-// ===========================================
-
-model SystemConfig {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Configuration Identity
-  key         String  @unique // Unique identifier for the config (e.g., "developer_fee", "credit_card_emission_fee")
-  name        String // Human-readable name (e.g., "Developer Fee", "Credit Card Emission Fee")
-  description String? // Optional description of what this config controls
-
-  // Configuration Type and Status
-  type   ConfigType // FEE, LIMIT, FEATURE_FLAG, INTEGRATION_SETTING
-  status ConfigStatus @default(active)
-
-  // Configuration Value (JSON for flexibility)
-  value        Json // The actual configuration value (can be number, string, boolean, object, array)
-  defaultValue Json? // Default value for this configuration
-
-  // Validation and Constraints
-  minValue       Json? // Minimum allowed value (for numeric configs)
-  maxValue       Json? // Maximum allowed value (for numeric configs)
-  allowedValues  Json? // Array of allowed values (for enum-like configs)
-  validationRule String? // Custom validation rule or regex pattern
-
-  // Metadata
-  category String? // Grouping configs (e.g., "fees", "limits", "integrations")
-  tags     String[] @default([]) // For additional categorization
-
-  // Audit Trail
-  lastModifiedBy String?   @map("last_modified_by") // Profile ID of who last modified this
-  lastModifiedAt DateTime? @map("last_modified_at")
-
-  // Relations
-  configHistory SystemConfigHistory[] // Track all changes to this config
-  events        Event[] // Track system events related to this config
-
-  @@index([key])
-  @@index([type])
-  @@index([status])
-  @@index([category])
-  @@map("system_configs")
-}
-
-model SystemConfigHistory {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-
-  // Configuration Reference
-  configId String @map("config_id")
-
-  // Change Information
-  oldValue     Json?   @map("old_value") // Previous value
-  newValue     Json    @map("new_value") // New value
-  changeReason String? @map("change_reason") // Optional reason for the change
-
-  // Audit Information
-  modifiedBy String   @map("modified_by") // Profile ID of who made the change
-  modifiedAt DateTime @default(now()) @map("modified_at")
-
-  // Relations
-  config SystemConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
-
-  @@index([configId])
-  @@index([modifiedAt])
-  @@map("system_config_history")
-}
-
-model FeeConfig {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Fee Identity
-  feeType     FeeType @map("fee_type") // DEVELOPER_FEE, CREDIT_CARD_EMISSION_FEE, etc.
-  name        String // Human-readable name
-  description String? // Description of what this fee is for
-
-  // Fee Structure
-  amount       Decimal @db.Decimal(10, 4) // Fee amount (supports 4 decimal places for precision)
-  currency     String  @default("USD") // Currency code (USD, EUR, etc.)
-  feeStructure String  @default("percentage") @map("fee_structure") // percentage, fixed_amount, tiered
-
-  // Fee Conditions
-  minAmount Decimal? @map("min_amount") @db.Decimal(10, 2) // Minimum transaction amount to apply fee
-  maxAmount Decimal? @map("max_amount") @db.Decimal(10, 2) // Maximum fee amount (for percentage fees)
-  isActive  Boolean  @default(true) @map("is_active")
-
-  // Fee Application
-  appliesTo    String[] @default([]) @map("applies_to") // Array of transaction types, chains, or conditions
-  excludedFrom String[] @default([]) @map("excluded_from") // Array of excluded transaction types or conditions
-
-  // Metadata
-  category String? // Grouping fees (e.g., "crypto", "cards", "general")
-  tags     String[] @default([])
-
-  // Audit Trail
-  lastModifiedBy String?   @map("last_modified_by") // Profile ID of who last modified this
-  lastModifiedAt DateTime? @map("last_modified_at")
-
-  // Relations
-  feeHistory FeeConfigHistory[] // Track all changes to this fee
-  events     Event[] // Track system events related to this fee
-
-  @@index([feeType])
-  @@index([isActive])
-  @@index([category])
-  @@map("fee_configs")
-}
-
-model FeeConfigHistory {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-
-  // Fee Reference
-  feeId String @map("fee_id")
-
-  // Change Information
-  oldAmount    Decimal? @map("old_amount") @db.Decimal(10, 4)
-  newAmount    Decimal  @map("new_amount") @db.Decimal(10, 4)
-  oldCurrency  String?  @map("old_currency")
-  newCurrency  String   @map("new_currency")
-  changeReason String?  @map("change_reason")
-
-  // Audit Information
-  modifiedBy String   @map("modified_by") // Profile ID of who made the change
-  modifiedAt DateTime @default(now()) @map("modified_at")
-
-  // Relations
-  fee FeeConfig @relation(fields: [feeId], references: [id], onDelete: Cascade)
-
-  @@index([feeId])
-  @@index([modifiedAt])
-  @@map("fee_config_history")
-}
-
-// ===========================================
-// CRYPTO DEPOSITS CONFIGURATION MODELS
-// ===========================================
-//
-// Purpose: Manage crypto deposit configurations for the mobile app
-// including supported chains, tokens, and deposit instructions.
-//
-// Access: Only SUPERADMIN role can modify these settings
-//
-// ===========================================
-
 enum RiskLevel {
   low
   medium
   high
 }
 
-model CryptoDepositConfig {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Chain Information
-  chainId     String @unique @map("chain_id") // Unique identifier (e.g., "ethereum", "arbitrum")
-  chainName   String @map("chain_name") // Technical name (e.g., "Ethereum")
-  displayName String @map("display_name") // User-friendly name (e.g., "Ethereum (ETH)")
-
-  // Configuration
-  isEnabled           Boolean @default(true) @map("is_enabled")
-  depositInstructions String  @map("deposit_instructions") // Custom instructions for this chain
-
-  // Limits and Fees
-  minimumAmount Decimal? @map("minimum_amount") @db.Decimal(20, 8) // Minimum deposit amount
-  maximumAmount Decimal? @map("maximum_amount") @db.Decimal(20, 8) // Maximum deposit amount  
-  networkFee    Decimal? @map("network_fee") @db.Decimal(20, 8) // Network fee estimate
-
-  // Additional Information
-  processingTime String    @map("processing_time") // e.g., "5-10 minutes"
-  riskLevel      RiskLevel @default(low) @map("risk_level")
-  iconUrl        String?   @map("icon_url") // URL to chain icon
-  explorerUrl    String?   @map("explorer_url") // Blockchain explorer URL
-
-  // Supported Tokens (JSON array)
-  supportedTokens Json @default("[]") @map("supported_tokens") // Array of token configurations
-
-  // Audit Trail
-  lastModifiedBy String?   @map("last_modified_by") // Profile ID of who last modified this
-  lastModifiedAt DateTime? @map("last_modified_at")
-
-  // Relations
-  depositHistory CryptoDepositHistory[] // Track all changes to this config
-
-  @@index([chainId])
-  @@index([isEnabled])
-  @@index([riskLevel])
-  @@map("crypto_deposit_configs")
-}
-
-model CryptoDepositHistory {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-
-  // Configuration Reference
-  configId String @map("config_id")
-
-  // Change Information
-  changeType   String  @map("change_type") // "created", "updated", "enabled", "disabled"
-  oldValues    Json?   @map("old_values") // Previous configuration values
-  newValues    Json    @map("new_values") // New configuration values
-  changeReason String? @map("change_reason") // Optional reason for the change
-
-  // Audit Information
-  modifiedBy String   @map("modified_by") // Profile ID of who made the change
-  modifiedAt DateTime @default(now()) @map("modified_at")
-
-  // Relations
-  config CryptoDepositConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
-
-  @@index([configId])
-  @@index([modifiedAt])
-  @@index([changeType])
-  @@map("crypto_deposit_history")
-}
-
-// ===========================================
-// QR DEPOSITS (SIP/BISA) MODELS
-// ===========================================
-// Purpose: Track QR requests and daily analytics for Bs→USDC deposits
-// Note: Business logic runs in mobile app/edge functions; this is storage only
-
 enum QrDepositStatus {
-  PENDING // QR generated, waiting for payment
-  PAID_UNCONFIRMED // Payment detected by SIP, not yet processed
-  TRANSFERRING // Bridge transfer in progress
-  COMPLETED // Successfully completed
-  FAILED // Error occurred
-  EXPIRED // QR expired
-  CANCELLED // Cancelled by user
+  PENDING
+  PAID_UNCONFIRMED
+  TRANSFERRING
+  COMPLETED
+  FAILED
+  EXPIRED
+  CANCELLED
 }
 
 enum QrPriority {
-  HIGH // 0-30 min: Check every 2 minutes
-  MEDIUM // 30min-2h: Check every 5 minutes
-  LOW // 2h-24h: Check every 15 minutes
-  CLEANUP // >24h: Check daily for cleanup
+  HIGH
+  MEDIUM
+  LOW
+  CLEANUP
 }
 
-model DepositQrRequest {
-  id               String @id @default(cuid())
-  profileId        String @map("profile_id")
-  bridgeCustomerId String @map("bridge_customer_id")
-  targetWalletId   String @map("target_wallet_id")
-  qrReferenceId    String @unique @map("qr_reference_id")
-
-  // Financial data
-  amountBs     Decimal @map("amount_bs") @db.Decimal(12, 2)
-  amountUsd    Decimal @map("amount_usd") @db.Decimal(12, 6)
-  exchangeRate Decimal @map("exchange_rate") @db.Decimal(10, 4)
-
-  // Status management
-  status   QrDepositStatus @default(PENDING)
-  priority QrPriority      @default(HIGH)
-
-  // Verification tracking
-  verificationCount Int       @default(0) @map("verification_count")
-  lastVerifiedAt    DateTime? @map("last_verified_at")
-
-  // Timestamps
-  expiresAt DateTime  @map("expires_at")
-  paidAt    DateTime? @map("paid_at")
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-
-  // Additional data
-  metadata Json?
-
-  // Relations
-  profile      Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  targetWallet Wallet  @relation(fields: [targetWalletId], references: [id])
-
-  @@index([status, priority, lastVerifiedAt])
-  @@index([profileId, status])
-  @@index([qrReferenceId])
-  @@map("deposit_qr_requests")
+enum QrGenerationStatus {
+  PENDING
+  PAID
+  EXPIRED
+  CANCELLED
+  ERROR
 }
 
-model QrAnalytics {
-  id                String   @id @default(cuid())
-  date              DateTime @unique @db.Date
-  totalGenerated    Int      @default(0) @map("total_generated")
-  totalPaid         Int      @default(0) @map("total_paid")
-  avgPaymentTimeMin Int?     @map("avg_payment_time_min")
-  successRate       Decimal? @map("success_rate") @db.Decimal(5, 4)
-  apiCallsCount     Int      @default(0) @map("api_calls_count")
-  avgResponseTimeMs Int?     @map("avg_response_time_ms")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@map("qr_analytics")
+enum TransferSyncSource {
+  bridge_transfer
+  wallet_transaction
+  liquidation_drain
 }
