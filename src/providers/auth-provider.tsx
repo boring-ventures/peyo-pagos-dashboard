@@ -70,7 +70,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Fallback a API call
       const response = await fetch(`/api/profile/${userId}`);
-      if (!response.ok) throw new Error("Failed to fetch profile");
+      if (!response.ok) {
+        if (response.status === 404) {
+          // Profile doesn't exist yet - this is normal for new users
+          console.log("Profile not found for new user");
+          setProfile(null);
+          return null;
+        }
+        if (response.status === 401 || response.status === 403) {
+          // Authentication issues - let user continue signup flow
+          console.log("Authentication issue during profile fetch, user may be in signup flow");
+          setProfile(null);
+          return null;
+        }
+        // For other errors, still be graceful during signup
+        console.error("Failed to fetch profile, status:", response.status);
+        setProfile(null);
+        return null;
+      }
       const data = await response.json();
       
       const responseTime = Date.now() - startTime;
@@ -105,6 +122,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const responseTime = Date.now() - startTime;
       performanceMonitor.logRequest("auth-provider", userId, false, responseTime);
       console.error("Error fetching profile:", error);
+      
+      // Don't throw the error during signup flow - let the app continue with null profile
       setProfile(null);
       return null;
     }

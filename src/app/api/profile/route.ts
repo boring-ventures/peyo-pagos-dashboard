@@ -6,7 +6,10 @@ import prisma from "@/lib/prisma";
 // GET: Fetch profile for the current authenticated user
 export async function GET() {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ 
+      cookies: () => cookieStore 
+    });
 
     // Get the current user's session
     const {
@@ -21,11 +24,18 @@ export async function GET() {
     const userId = session.user.id;
 
     // Fetch profile from the database
-    const profile = await prisma.profile.findUnique({
-      where: { userId },
-    });
+    let profile;
+    try {
+      profile = await prisma.profile.findUnique({
+        where: { userId },
+      });
+    } catch (dbError) {
+      console.error("Database error when fetching profile in /api/profile:", dbError);
+      return NextResponse.json({ error: "Database error" }, { status: 500 });
+    }
 
     if (!profile) {
+      console.log(`Profile not found for current user: ${userId}`);
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
 
@@ -42,7 +52,10 @@ export async function GET() {
 // PUT: Update profile for the current authenticated user
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ 
+      cookies: () => cookieStore 
+    });
 
     // Get the current user's session
     const {
@@ -82,7 +95,7 @@ export async function PUT(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
-    const { userId, firstName, lastName } = data;
+    const { userId, email, firstName, lastName, role, status } = data;
 
     // If userId is provided directly (for admin user creation)
     if (userId) {
@@ -102,10 +115,11 @@ export async function POST(request: NextRequest) {
       const newProfile = await prisma.profile.create({
         data: {
           userId,
-          firstName,
-          lastName,
-          status: "active",
-          role: "USER",
+          email: email || '',
+          firstName: firstName || '',
+          lastName: lastName || '',
+          status: status || "active",
+          role: role || "USER",
         },
       });
 
@@ -113,7 +127,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Normal flow requiring authentication
-    const supabase = createRouteHandlerClient({ cookies });
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ 
+      cookies: () => cookieStore 
+    });
 
     // Get the current user's session
     const {
@@ -143,10 +160,11 @@ export async function POST(request: NextRequest) {
     const newProfile = await prisma.profile.create({
       data: {
         userId: authenticatedUserId,
-        firstName,
-        lastName,
-        status: "active",
-        role: "USER",
+        email: email || '',
+        firstName: firstName || '',
+        lastName: lastName || '',
+        status: status || "active",
+        role: role || "USER",
       },
     });
 

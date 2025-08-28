@@ -6,6 +6,7 @@ import {
   getUserForMiddleware,
   getCacheStatistics,
   invalidateUserCache,
+  checkUserRegistrationStatus,
 } from "@/lib/utils/middleware-cache";
 
 export async function middleware(req: NextRequest) {
@@ -29,11 +30,56 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  // If there's a session and the user is trying to access auth routes
+  // If there's a session and the user is trying to access sign-in
   if (session && req.nextUrl.pathname.startsWith("/sign-in")) {
-    const redirectUrl = req.nextUrl.clone();
-    redirectUrl.pathname = "/dashboard";
-    return NextResponse.redirect(redirectUrl);
+    // Check if user has completed registration by trying to get their profile
+    try {
+      const userData = await getUserForMiddleware(session.user.id, req);
+      if (userData && userData.profile.isActive) {
+        // Check if user is admin/superadmin or regular user
+        if (userData.profile.role === "ADMIN" || userData.profile.role === "SUPERADMIN") {
+          // Admin users go to dashboard
+          const redirectUrl = req.nextUrl.clone();
+          redirectUrl.pathname = "/dashboard";
+          return NextResponse.redirect(redirectUrl);
+        } else if (userData.profile.role === "USER") {
+          // Check if USER has completed registration
+          const registrationStatus = await checkUserRegistrationStatus(session.user.id, req);
+          if (registrationStatus.isRegistrationComplete) {
+            // User has completed registration but no user dashboard exists yet
+            const redirectUrl = req.nextUrl.clone();
+            redirectUrl.pathname = "/sign-up";
+            redirectUrl.searchParams.set("status", "registration-complete");
+            return NextResponse.redirect(redirectUrl);
+          } else {
+            // User hasn't completed registration, redirect to sign-up
+            const redirectUrl = req.nextUrl.clone();
+            redirectUrl.pathname = "/sign-up";
+            return NextResponse.redirect(redirectUrl);
+          }
+        }
+      } else {
+        // User hasn't completed registration, redirect to sign-up
+        const redirectUrl = req.nextUrl.clone();
+        redirectUrl.pathname = "/sign-up";
+        return NextResponse.redirect(redirectUrl);
+      }
+    } catch (error) {
+      console.log("User profile not found, allowing sign-up flow");
+      // Profile doesn't exist, let them go to sign-up
+      if (!req.nextUrl.pathname.startsWith("/sign-up")) {
+        const redirectUrl = req.nextUrl.clone();
+        redirectUrl.pathname = "/sign-up";
+        return NextResponse.redirect(redirectUrl);
+      }
+    }
+  }
+
+  // If there's a session and the user is trying to access sign-up, allow it
+  // This handles users who are in the middle of registration process
+  if (session && req.nextUrl.pathname.startsWith("/sign-up")) {
+    // Let them continue with sign-up flow
+    return res;
   }
 
   // 🚀 CAMBIO PRINCIPAL: Usar cache layer para obtener datos de usuario
@@ -42,13 +88,14 @@ export async function middleware(req: NextRequest) {
     try {
       const userData = await getUserForMiddleware(session.user.id, req);
 
-      // Si no se pueden obtener datos, permitir acceso pero loggear
+      // Si no se pueden obtener datos del usuario, redirigir a sign-up
       if (!userData) {
-        console.error(
-          `[MIDDLEWARE] ❌ No se pudieron obtener datos de usuario para ${session.user.id}`
+        console.log(
+          `[MIDDLEWARE] ⚠️ No se encontró perfil para ${session.user.id}, redirigiendo a registro`
         );
-        // No redirigir para evitar bucles, solo continuar
-        return res;
+        const redirectUrl = req.nextUrl.clone();
+        redirectUrl.pathname = "/sign-up";
+        return NextResponse.redirect(redirectUrl);
       }
 
       const { profile, cacheSource } = userData;
@@ -78,6 +125,42 @@ export async function middleware(req: NextRequest) {
         return NextResponse.redirect(signInUrl);
       }
 
+      // Check if user has completed their registration (for USER role)
+      if (profile.role === "USER") {
+        try {
+          const registrationStatus = await checkUserRegistrationStatus(session.user.id, req);
+          
+          if (!registrationStatus.isRegistrationComplete) {
+            console.log(`[MIDDLEWARE] Usuario con registro incompleto: ${session.user.id} - Redirigiendo a registro`);
+            console.log(`[MIDDLEWARE] Estado de registro:`, {
+              hasProfile: registrationStatus.hasProfile,
+              hasKYCProfile: registrationStatus.hasKYCProfile,
+              kycStatus: registrationStatus.kycStatus,
+              isComplete: registrationStatus.isRegistrationComplete
+            });
+            
+            const redirectUrl = req.nextUrl.clone();
+            redirectUrl.pathname = "/sign-up";
+            return NextResponse.redirect(redirectUrl);
+          }
+          
+          // If registration is complete but user is trying to access admin dashboard, 
+          // redirect to user-appropriate area (for now, keep them in sign-up until user dashboard is created)
+          console.log(`[MIDDLEWARE] Usuario con registro completo pero sin dashboard propio: ${session.user.id}`);
+          const redirectUrl = req.nextUrl.clone();
+          redirectUrl.pathname = "/sign-up";
+          redirectUrl.searchParams.set("status", "registration-complete");
+          return NextResponse.redirect(redirectUrl);
+          
+        } catch (error) {
+          console.error(`[MIDDLEWARE] Error verificando estado de registro para ${session.user.id}:`, error);
+          // En caso de error, redirigir a sign-up por seguridad
+          const redirectUrl = req.nextUrl.clone();
+          redirectUrl.pathname = "/sign-up";
+          return NextResponse.redirect(redirectUrl);
+        }
+      }
+
       // Para usuarios inactivos, solo loggear pero permitir acceso
       if (!profile.isActive) {
         console.log(
@@ -99,5 +182,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/sign-in", "/auth/callback"],
+  matcher: ["/dashboard/:path*", "/sign-in", "/sign-up", "/auth/callback"],
 };

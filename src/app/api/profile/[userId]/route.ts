@@ -11,7 +11,10 @@ export async function GET(
     const userId = (await params).userId;
 
     // Create Supabase client with awaited cookies
-    const supabase = createRouteHandlerClient({ cookies: await cookies() });
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ 
+      cookies: () => cookieStore 
+    });
 
     // Get the current user's session
     const {
@@ -36,11 +39,18 @@ export async function GET(
       );
     }
 
-    const profile = await prisma.profile.findUnique({
-      where: { userId },
-    });
+    let profile;
+    try {
+      profile = await prisma.profile.findUnique({
+        where: { userId },
+      });
+    } catch (dbError) {
+      console.error("Database error when fetching profile:", dbError);
+      return NextResponse.json({ error: "Database error" }, { status: 500 });
+    }
 
     if (!profile) {
+      console.log(`Profile not found for userId: ${userId}`);
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
 
@@ -88,7 +98,10 @@ export async function PATCH(
     const userId = (await params).userId;
 
     // Create Supabase client with awaited cookies
-    const supabase = createRouteHandlerClient({ cookies: await cookies() });
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ 
+      cookies: () => cookieStore 
+    });
 
     // Get the current user's session
     const {

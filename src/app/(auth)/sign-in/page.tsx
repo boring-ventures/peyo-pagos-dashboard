@@ -22,7 +22,7 @@ export default function SignInPage() {
           </p>
         </div>
         <UserAuthForm />
-        <div className="mt-4 text-center text-sm">
+        <div className="mt-4 text-center text-sm space-y-2">
           <p className="text-muted-foreground">
             ¿Prefieres iniciar sesión sin contraseña?{" "}
             <Link
@@ -30,6 +30,15 @@ export default function SignInPage() {
               className="underline underline-offset-4 hover:text-primary"
             >
               Usar enlace mágico
+            </Link>
+          </p>
+          <p className="text-muted-foreground">
+            ¿No tienes una cuenta?{" "}
+            <Link
+              href="/sign-up"
+              className="underline underline-offset-4 hover:text-primary font-medium"
+            >
+              Crear cuenta
             </Link>
           </p>
         </div>

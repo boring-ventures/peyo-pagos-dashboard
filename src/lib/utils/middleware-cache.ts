@@ -13,6 +13,13 @@ interface MiddlewareProfile {
   // Agregar otros campos que necesite Peyo CRM
 }
 
+interface UserRegistrationStatus {
+  hasProfile: boolean;
+  hasKYCProfile: boolean;
+  kycStatus: string | null;
+  isRegistrationComplete: boolean;
+}
+
 interface MiddlewareUserData {
   profile: MiddlewareProfile;
   cacheSource: "zustand" | "api" | "none";
@@ -221,4 +228,57 @@ export function forceRefreshUserCache(
 
   // Forzar fetch desde API
   return getUserForMiddleware(userId, request);
+}
+
+/**
+ * Check if a user has completed their registration process
+ * A user is considered complete when they have:
+ * 1. A profile (already checked in getUserForMiddleware)
+ * 2. A KYC profile that has been submitted (not "not_started") 
+ * 3. All required information filled out
+ */
+export async function checkUserRegistrationStatus(
+  userId: string,
+  request?: Request
+): Promise<UserRegistrationStatus> {
+  try {
+    // Construir URL de la API de manera compatible con middleware
+    const protocol = request?.headers?.get("x-forwarded-proto") || "http";
+    const host = request?.headers?.get("host") || "localhost:3000";
+    const apiUrl = `${protocol}://${host}/api/kyc/check-completion/${userId}`;
+
+    const response = await fetch(apiUrl, {
+      headers: {
+        "Content-Type": "application/json",
+        // Pasar cookies si están disponibles
+        ...(request?.headers?.get("cookie")
+          ? { Cookie: request.headers.get("cookie")! }
+          : {}),
+      },
+      // Agregar cache: 'no-store' para evitar cache del navegador
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      // If API endpoint doesn't exist or returns error, assume incomplete
+      return {
+        hasProfile: true, // We know they have a profile if we got this far
+        hasKYCProfile: false,
+        kycStatus: null,
+        isRegistrationComplete: false,
+      };
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error checking user registration status:", error);
+    // Default to incomplete registration on error
+    return {
+      hasProfile: true,
+      hasKYCProfile: false,
+      kycStatus: null,
+      isRegistrationComplete: false,
+    };
+  }
 }

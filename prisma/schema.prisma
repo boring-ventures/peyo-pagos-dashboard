@@ -1101,3 +1101,15 @@ enum TransferSyncSource {
   wallet_transaction
   liquidation_drain
 }
+
+model RegistrationDraft {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  userId      String   @unique @map("user_id")
+  formData    Json     @map("form_data")
+  currentStep Int      @default(1) @map("current_step")
+  files       Json     @default("{}") // Store file paths and metadata
+  
+  @@map("registration_drafts")
+}

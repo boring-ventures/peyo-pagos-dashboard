@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test ToS Callback</title>
+</head>
+<body>
+    <h1>Test Bridge ToS Callback</h1>
+    <p>Click the links below to test different callback scenarios:</p>
+    
+    <h2>Test URLs:</h2>
+    <ul>
+        <li><a href="http://localhost:3004/sign-up/tos-callback?signed_agreement_id=test_agreement_12345&success=true" target="_blank">Test with signed_agreement_id</a></li>
+        <li><a href="http://localhost:3004/sign-up/tos-callback?agreement_id=test_agreement_67890&success=true" target="_blank">Test with agreement_id</a></li>
+        <li><a href="http://localhost:3004/sign-up/tos-callback?agreementId=test_agreement_abcdef&success=true" target="_blank">Test with agreementId</a></li>
+        <li><a href="http://localhost:3004/sign-up/tos-callback?tos_id=test_agreement_xyz123&success=true" target="_blank">Test with tos_id</a></li>
+        <li><a href="http://localhost:3004/sign-up/tos-callback?error=user_cancelled" target="_blank">Test error scenario</a></li>
+    </ul>
+    
+    <h2>Check Console:</h2>
+    <p>Open Developer Tools (F12) and check the Console tab when clicking the links above.</p>
+    
+    <h2>Check SessionStorage:</h2>
+    <p>After clicking a success link, you can check sessionStorage in the console:</p>
+    <pre>
+sessionStorage.getItem('bridgeTosAgreementId')
+sessionStorage.getItem('bridgeTosAccepted')
+sessionStorage.getItem('bridgeTosFinalStep')
+    </pre>
+</body>
+</html>

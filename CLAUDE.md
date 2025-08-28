@@ -19,6 +19,7 @@ PEYO Pagos is a business payment management dashboard built with Next.js, integr
 - `pnpm prisma db push` - Push schema changes to database
 - `pnpm prisma studio` - Open Prisma Studio for database inspection
 - `pnpm prisma db reset` - Reset database (development only)
+- `pnpm prisma migrate dev` - Create and apply migrations (development)
 
 ### Data Seeding Scripts
 - `pnpm seed:kyc` - Seed KYC test data
