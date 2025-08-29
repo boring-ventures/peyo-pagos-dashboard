@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -111,7 +111,7 @@ const STATUS_CONFIGS: Record<StatusType, {
   },
 };
 
-export default function KycStatusPage() {
+function KycStatusContent() {
   const searchParams = useSearchParams();
   const initialEmail = searchParams.get("email");
   const customerId = searchParams.get("customerId");
@@ -423,5 +423,18 @@ export default function KycStatusPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function KycStatusPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+      <div className="text-center space-y-2">
+        <RefreshCw className="h-8 w-8 animate-spin mx-auto" />
+        <p className="text-muted-foreground">Loading verification status...</p>
+      </div>
+    </div>}>
+      <KycStatusContent />
+    </Suspense>
   );
 }

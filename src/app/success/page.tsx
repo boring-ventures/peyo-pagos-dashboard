@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -105,7 +106,7 @@ const SUCCESS_CONFIGS: Record<SuccessType, SuccessConfig> = {
   },
 };
 
-export default function SuccessPage() {
+function SuccessPageContent() {
   const searchParams = useSearchParams();
   const type = (searchParams.get("type") as SuccessType) || "general";
   const customTitle = searchParams.get("title");
@@ -209,5 +210,18 @@ export default function SuccessPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SuccessPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
+      <div className="text-center space-y-2">
+        <CheckCircle2 className="h-8 w-8 text-green-600 mx-auto" />
+        <p className="text-muted-foreground">Loading success page...</p>
+      </div>
+    </div>}>
+      <SuccessPageContent />
+    </Suspense>
   );
 }

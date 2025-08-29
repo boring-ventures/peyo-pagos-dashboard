@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,7 +59,7 @@ const STEPS = [
   },
 ];
 
-export default function SignUpPage() {
+function SignUpPageContent() {
   const searchParams = useSearchParams();
   const registrationCompleteStatus = searchParams?.get("status");
   const tosCompleted = searchParams?.get("tos");
@@ -480,5 +480,18 @@ export default function SignUpPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="text-center space-y-2">
+        <FileText className="h-8 w-8 animate-spin mx-auto" />
+        <p className="text-muted-foreground">Loading sign up form...</p>
+      </div>
+    </div>}>
+      <SignUpPageContent />
+    </Suspense>
   );
 }

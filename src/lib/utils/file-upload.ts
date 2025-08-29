@@ -104,8 +104,8 @@ export function validateFile(file: File, documentType?: string): FileValidationR
   }
 
   // Check file type
-  const isImageFile = SUPPORTED_IMAGE_TYPES.includes(file.type as string);
-  const isDocumentFile = SUPPORTED_DOCUMENT_TYPES.includes(file.type as string);
+  const isImageFile = SUPPORTED_IMAGE_TYPES.includes(file.type as typeof SUPPORTED_IMAGE_TYPES[number]);
+  const isDocumentFile = SUPPORTED_DOCUMENT_TYPES.includes(file.type as typeof SUPPORTED_DOCUMENT_TYPES[number]);
 
   if (!isImageFile && !isDocumentFile) {
     errors.push(`File type '${file.type}' is not supported. Supported formats: ${SUPPORTED_DOCUMENT_TYPES.join(', ')}`);
@@ -144,7 +144,7 @@ export async function getFileMetadata(file: File): Promise<FileMetadata> {
   };
 
   // Get image dimensions if it's an image file
-  if (SUPPORTED_IMAGE_TYPES.includes(file.type as string)) {
+  if (SUPPORTED_IMAGE_TYPES.includes(file.type as typeof SUPPORTED_IMAGE_TYPES[number])) {
     try {
       metadata.dimensions = await getImageDimensions(file);
     } catch (error) {
@@ -185,7 +185,7 @@ function getImageDimensions(file: File): Promise<{ width: number; height: number
  */
 export function createFilePreview(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
-    if (!SUPPORTED_IMAGE_TYPES.includes(file.type as string)) {
+    if (!SUPPORTED_IMAGE_TYPES.includes(file.type as typeof SUPPORTED_IMAGE_TYPES[number])) {
       reject(new Error('File type not supported for preview'));
       return;
     }
@@ -212,7 +212,7 @@ export async function compressImage(
   documentType?: string,
   customOptions?: Partial<ImageCompressionOptions>
 ): Promise<File> {
-  if (!SUPPORTED_IMAGE_TYPES.includes(file.type as string)) {
+  if (!SUPPORTED_IMAGE_TYPES.includes(file.type as typeof SUPPORTED_IMAGE_TYPES[number])) {
     throw new Error('File type not supported for compression');
   }
 
@@ -378,7 +378,7 @@ export async function processFile(
   };
 
   // Create preview if requested and file is an image
-  if (createPreview && SUPPORTED_IMAGE_TYPES.includes(file.type as string)) {
+  if (createPreview && SUPPORTED_IMAGE_TYPES.includes(file.type as typeof SUPPORTED_IMAGE_TYPES[number])) {
     try {
       result.preview = await createFilePreview(file);
     } catch (error) {
@@ -387,7 +387,7 @@ export async function processFile(
   }
 
   // Compress image if requested and beneficial
-  if (compress && SUPPORTED_IMAGE_TYPES.includes(file.type as string) && file.size > 1024 * 1024) {
+  if (compress && SUPPORTED_IMAGE_TYPES.includes(file.type as typeof SUPPORTED_IMAGE_TYPES[number]) && file.size > 1024 * 1024) {
     try {
       const compressed = await compressImage(file, documentType, compressionOptions);
       
@@ -484,7 +484,7 @@ export function getFileExtension(file: File): string {
  * Check if file is an image
  */
 export function isImageFile(file: File): boolean {
-  return SUPPORTED_IMAGE_TYPES.includes(file.type as string);
+  return SUPPORTED_IMAGE_TYPES.includes(file.type as typeof SUPPORTED_IMAGE_TYPES[number]);
 }
 
 /**

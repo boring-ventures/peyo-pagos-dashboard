@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 
-export default function TosCallbackPage() {
+function TosCallbackContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
@@ -239,5 +239,18 @@ export default function TosCallbackPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function TosCallbackPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+      <div className="text-center space-y-2">
+        <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+        <p className="text-muted-foreground">Processing Terms of Service...</p>
+      </div>
+    </div>}>
+      <TosCallbackContent />
+    </Suspense>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -176,7 +177,7 @@ const ERROR_CONFIGS: Record<ErrorType, ErrorConfig> = {
   },
 };
 
-export default function ErrorPage() {
+function ErrorPageContent() {
   const searchParams = useSearchParams();
   const type = (searchParams.get("type") as ErrorType) || "general";
   const customTitle = searchParams.get("title");
@@ -331,5 +332,18 @@ export default function ErrorPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ErrorPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-100 flex items-center justify-center p-4">
+      <div className="text-center space-y-2">
+        <RefreshCw className="h-8 w-8 animate-spin mx-auto" />
+        <p className="text-muted-foreground">Loading error page...</p>
+      </div>
+    </div>}>
+      <ErrorPageContent />
+    </Suspense>
   );
 }
