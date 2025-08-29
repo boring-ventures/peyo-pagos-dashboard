@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getBridgeApiClient } from "@/lib/bridge/api";
+import { getBridgeApiClient, bridgeUtils } from "@/lib/bridge/api";
 import type { BridgeCustomerResponse } from "@/types/bridge";
 
 // GET: Check KYC verification status
@@ -36,8 +36,8 @@ export async function GET(request: NextRequest) {
         include: {
           kycProfile: {
             include: {
-              addresses: true,
-              identifyingInformation: true,
+              address: true,
+              identifyingInfo: true,
               documents: true,
             },
           },
@@ -49,8 +49,8 @@ export async function GET(request: NextRequest) {
         include: {
           kycProfile: {
             include: {
-              addresses: true,
-              identifyingInformation: true,
+              address: true,
+              identifyingInfo: true,
               documents: true,
             },
           },
@@ -66,8 +66,8 @@ export async function GET(request: NextRequest) {
         include: {
           kycProfile: {
             include: {
-              addresses: true,
-              identifyingInformation: true,
+              address: true,
+              identifyingInfo: true,
               documents: true,
             },
           },
@@ -107,9 +107,8 @@ export async function GET(request: NextRequest) {
               await prisma.kYCProfile.update({
                 where: { id: profile.kycProfile.id },
                 data: {
-                  kycStatus: bridgeCustomer.status,
-                  kybStatus: bridgeCustomer.status, // For business customers
-                  bridgeRawResponse: bridgeCustomer as unknown as Record<string, unknown>,
+                  kycStatus: bridgeUtils.mapBridgeStatusToKycStatus(bridgeCustomer.status),
+                  bridgeRawResponse: JSON.parse(JSON.stringify(bridgeCustomer)),
                   updatedAt: new Date(),
                 },
               });
@@ -117,8 +116,8 @@ export async function GET(request: NextRequest) {
               // Create an audit event
               await prisma.event.create({
                 data: {
-                  type: 'KYC_STATUS_UPDATED',
-                  module: 'VERIFICATION',
+                  type: 'USER_KYC_UNDER_VERIFICATION',
+                  module: 'KYC',
                   description: `KYC status updated from ${profile.kycProfile.kycStatus} to ${bridgeCustomer.status}`,
                   profileId: profile.id,
                   metadata: {
@@ -131,7 +130,7 @@ export async function GET(request: NextRequest) {
               });
 
               statusUpdated = true;
-              profile.kycProfile.kycStatus = bridgeCustomer.status;
+              profile.kycProfile.kycStatus = bridgeUtils.mapBridgeStatusToKycStatus(bridgeCustomer.status);
             }
           } else {
             console.warn("⚠️ Failed to fetch Bridge status:", bridgeResponse.error);
@@ -151,7 +150,6 @@ export async function GET(request: NextRequest) {
       email: profile.email,
       customerType: profile.kycProfile.customerType,
       kycStatus: profile.kycProfile.kycStatus,
-      kybStatus: profile.kycProfile.kybStatus,
       bridgeCustomerId: profile.kycProfile.bridgeCustomerId,
       statusUpdated,
       lastUpdated: profile.kycProfile.updatedAt,
@@ -159,14 +157,14 @@ export async function GET(request: NextRequest) {
     };
 
     // Add additional details based on status
-    const additionalInfo: any = {};
+    const additionalInfo: { [key: string]: unknown } = {};
 
     if (profile.kycProfile.kycStatus === 'rejected' && bridgeCustomer?.rejection_reasons) {
       additionalInfo.rejectionReasons = bridgeCustomer.rejection_reasons;
     }
 
-    if (profile.kycProfile.kycStatus === 'incomplete' && bridgeCustomer?.required_fields) {
-      additionalInfo.requiredFields = bridgeCustomer.required_fields;
+    if (profile.kycProfile.kycStatus === 'incomplete' && bridgeCustomer?.requirements_due) {
+      additionalInfo.requiredFields = bridgeCustomer.requirements_due;
     }
 
     if (profile.kycProfile.kycStatus === 'under_review') {
@@ -181,7 +179,7 @@ export async function GET(request: NextRequest) {
       customer: {
         name: profile.kycProfile.customerType === 'individual' 
           ? `${profile.firstName} ${profile.lastName}`.trim()
-          : profile.kycProfile.businessLegalName,
+          : `${profile.firstName} ${profile.lastName}`.trim() || 'Business Customer',
         customerType: profile.kycProfile.customerType,
         accountPurpose: profile.kycProfile.accountPurpose,
       },
@@ -291,8 +289,7 @@ export async function POST(request: NextRequest) {
     await prisma.kYCProfile.update({
       where: { id: profile.kycProfile.id },
       data: {
-        kycStatus: 'pending',
-        kybStatus: profile.kycProfile.customerType === 'business' ? 'pending' : null,
+        kycStatus: 'not_started',
         updatedAt: new Date(),
       },
     });
@@ -300,8 +297,8 @@ export async function POST(request: NextRequest) {
     // Create audit event
     await prisma.event.create({
       data: {
-        type: 'KYC_RETRY_REQUESTED',
-        module: 'VERIFICATION',
+        type: 'USER_SUBMITTED_KYC',
+        module: 'KYC',
         description: `KYC verification retry requested for ${profile.email}`,
         profileId: profile.id,
         metadata: {

@@ -59,7 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           firstName: cachedUser.name?.split(' ')[0] || '',
           lastName: cachedUser.name?.split(' ').slice(1).join(' ') || '',
           status: cachedUser.isActive ? 'active' : 'disabled',
-          role: cachedUser.role as any,
+          role: cachedUser.role as 'USER' | 'ADMIN' | 'SUPERADMIN',
           createdAt: new Date(),
           updatedAt: new Date(),
         };
@@ -114,7 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           },
         };
         
-        userStore.updateCache(userForStore as any);
+        userStore.updateCache(userForStore as Parameters<typeof userStore.updateCache>[0]);
       }
       
       return data.profile;

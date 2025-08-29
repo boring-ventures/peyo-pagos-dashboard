@@ -9,7 +9,7 @@ interface MiddlewareProfile {
   isActive: boolean;
   isDeleted?: boolean;
   roleId: string;
-  permissions: any;
+  permissions: unknown;
   // Agregar otros campos que necesite Peyo CRM
 }
 
@@ -109,7 +109,7 @@ export async function getUserForMiddleware(
           },
         };
 
-        store.updateCache(userForStore as any);
+        store.updateCache(userForStore as Parameters<typeof store.updateCache>[0]);
 
         if (process.env.NODE_ENV === "development") {
           console.log(

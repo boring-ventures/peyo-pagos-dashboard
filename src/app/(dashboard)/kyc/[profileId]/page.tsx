@@ -1013,7 +1013,7 @@ export default function KYCProfileDetailsPage() {
                                     {(
                                       endorsement.requirements as EndorsementRequirements
                                     ).complete!.map(
-                                      (req: any, index: number) => (
+                                      (req: unknown, index: number) => (
                                         <Badge
                                           key={index}
                                           variant="outline"
@@ -1055,7 +1055,7 @@ export default function KYCProfileDetailsPage() {
                                     {(
                                       endorsement.requirements as EndorsementRequirements
                                     ).pending!.map(
-                                      (req: any, index: number) => (
+                                      (req: unknown, index: number) => (
                                         <Badge
                                           key={index}
                                           variant="outline"
@@ -1097,7 +1097,7 @@ export default function KYCProfileDetailsPage() {
                                     {(
                                       endorsement.requirements as EndorsementRequirements
                                     ).issues!.map(
-                                      (issue: any, index: number) => (
+                                      (issue: unknown, index: number) => (
                                         <Badge
                                           key={index}
                                           variant="destructive"

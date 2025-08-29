@@ -138,7 +138,7 @@ export default function TosCallbackPage() {
         setStatus("error");
       }
     }
-  }, [signedAgreementId, error, router]);
+  }, [signedAgreementId, error, router, searchParams]);
 
   const handleContinue = () => {
     router.push("/sign-up");

@@ -13,7 +13,7 @@ interface User {
   userPermission?: {
     id: string;
     userId: string;
-    permissions: any;
+    permissions: unknown;
     createdAt: string;
     updatedAt: string;
   };

@@ -230,9 +230,9 @@ export function RegistrationStatus({
                 <strong>What happens next:</strong>
                 <ul className="mt-2 space-y-1 text-sm list-disc list-inside">
                   <li>Our compliance team will review your application</li>
-                  <li>You'll receive email updates on your application status</li>
+                  <li>You&apos;ll receive email updates on your application status</li>
                   <li>Additional documentation may be requested if needed</li>
-                  <li>You'll be notified once your account is approved</li>
+                  <li>You&apos;ll be notified once your account is approved</li>
                 </ul>
               </AlertDescription>
             </Alert>
@@ -292,7 +292,7 @@ export function RegistrationStatus({
 
         {isProcessing && (
           <p className="text-sm text-muted-foreground text-center">
-            Please don't close this page while we process your application.
+            Please don&apos;t close this page while we process your application.
           </p>
         )}
       </div>

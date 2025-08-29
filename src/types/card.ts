@@ -240,7 +240,7 @@ export interface CardBalanceAddition {
   bankAccountNumber?: string;
   bankName?: string;
   moonTransactionId?: string;
-  moonResponse?: any;
+  moonResponse?: unknown;
   balanceBefore: number;
   balanceAfter: number;
   availableBalanceBefore: number;

@@ -54,8 +54,9 @@ export function useCurrentUser(): CurrentUserData {
             email: cachedUser.email,
             firstName: cachedUser.name?.split(' ')[0] || '',
             lastName: cachedUser.name?.split(' ').slice(1).join(' ') || '',
+            userTag: null,
             status: cachedUser.isActive ? 'active' : 'disabled',
-            role: cachedUser.role as any,
+            role: cachedUser.role as 'USER' | 'ADMIN' | 'SUPERADMIN',
             createdAt: new Date(),
             updatedAt: new Date(),
           };
@@ -96,7 +97,7 @@ export function useCurrentUser(): CurrentUserData {
             },
           };
           
-          userStore.updateCache(userForStore as any);
+          userStore.updateCache(userForStore as Parameters<typeof userStore.updateCache>[0]);
         }
       }
     } catch (err) {

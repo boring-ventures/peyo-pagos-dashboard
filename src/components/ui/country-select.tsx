@@ -230,7 +230,7 @@ export const CountrySelect = React.forwardRef<HTMLInputElement, CountrySelectPro
     placeholder = "Buscar país...", 
     className,
     disabled = false
-  }, _ref) => {
+  }) => {
     const [isOpen, setIsOpen] = React.useState(false);
     const [searchTerm, setSearchTerm] = React.useState("");
 

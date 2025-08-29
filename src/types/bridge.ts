@@ -211,7 +211,7 @@ export interface BridgeEndorsement {
 export interface BridgeErrorResponse {
   error: string;
   message: string;
-  details?: any;
+  details?: unknown;
   code?: string;
   status_code: number;
 }
@@ -270,13 +270,13 @@ export interface BridgeClientConfig {
 export interface BridgeRequestOptions {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE';
   endpoint: string;
-  data?: any;
+  data?: unknown;
   idempotencyKey?: string;
   headers?: Record<string, string>;
 }
 
 // Bridge API response wrapper
-export interface BridgeApiResponse<T = any> {
+export interface BridgeApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: BridgeErrorResponse;

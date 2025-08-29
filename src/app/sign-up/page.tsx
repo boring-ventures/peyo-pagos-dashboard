@@ -14,7 +14,7 @@ import { CustomerTypeSelector } from "@/components/auth/sign-up/customer-type-se
 import { IndividualRegistrationForm } from "@/components/auth/sign-up/individual-registration-form";
 import { BusinessRegistrationForm } from "@/components/auth/sign-up/business-registration-form";
 import { RegistrationProgress } from "@/components/auth/sign-up/registration-progress";
-import { RegistrationStatus } from "@/components/auth/sign-up/registration-status";
+import { RegistrationStatusES } from "@/components/auth/sign-up/registration-status-es";
 
 // Types
 import type { CustomerRegistrationData, RegistrationResponse } from "@/types/customer";
@@ -72,7 +72,7 @@ export default function SignUpPage() {
   const [registrationState, setRegistrationState] = useState<RegistrationState>("idle");
   const [registrationResponse, setRegistrationResponse] = useState<RegistrationResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [authData, setAuthData] = useState<{ email: string; password: string; supabaseUser: any } | null>(null);
+  const [authData, setAuthData] = useState<{ email: string; password: string; supabaseUser: unknown } | null>(null);
 
   // Auto-save registration progress to localStorage
   useEffect(() => {
@@ -147,7 +147,7 @@ export default function SignUpPage() {
     }
   }, [tosCompleted]);
 
-  const handleAuthComplete = (data: { email: string; password: string; supabaseUser: any }) => {
+  const handleAuthComplete = (data: { email: string; password: string; supabaseUser: unknown }) => {
     setAuthData(data);
     setCurrentStep("customer-type");
     setCompletedSteps(["auth"]);
@@ -165,14 +165,54 @@ export default function SignUpPage() {
     setRegistrationState("submitting");
     
     try {
+      // Clean the data to remove File objects and fix structure for API
+      const cleanedData = {
+        ...data,
+        // Remove File objects from identifyingInformation - they'll be sent separately
+        identifyingInformation: data.identifyingInformation?.map(doc => ({
+          ...doc,
+          imageFront: undefined, // Remove File object
+          imageBack: undefined,  // Remove File object
+        })) || [],
+        // Ensure documents array has proper structure
+        documents: data.documents?.map(doc => ({
+          ...doc,
+          file: undefined, // Remove File object
+          purposes: doc.purposes || ["other"], // Ensure purposes is not undefined
+        })) || [],
+      };
+
+      console.log("🧹 Cleaned data for API:", cleanedData);
+      
       // Prepare form data for submission
       const formData = new FormData();
-      formData.append('data', JSON.stringify(data));
+      formData.append('data', JSON.stringify(cleanedData));
       
-      // Add files if present
+      // Add files if present - use proper field names that match schema
       if (files) {
-        for (const [key, file] of files.entries()) {
-          formData.append(key, file);
+        for (const [documentType, fileArray] of files.entries()) {
+          if (Array.isArray(fileArray)) {
+            fileArray.forEach((file, index) => {
+              if (file instanceof File) {
+                console.log(`📎 Adding file: ${documentType}_${index}`, file.name);
+                formData.append(`${documentType}_${index}`, file);
+              }
+            });
+          } else if (files instanceof File) {
+            // Handle single file case
+            console.log(`📎 Adding single file: ${documentType}`, files.name);
+            formData.append(`${documentType}_0`, files);
+          }
+        }
+      }
+      
+      // Debug: Log what we're sending
+      console.log("📦 FormData contents:");
+      for (const [key, value] of formData.entries()) {
+        if (value instanceof File) {
+          console.log(`  ${key}: File(${value.name}, ${value.size} bytes)`);
+        } else {
+          console.log(`  ${key}: ${typeof value} (${String(value).substring(0, 100)}...)`);
         }
       }
 
@@ -192,7 +232,7 @@ export default function SignUpPage() {
       if (!response.ok) {
         let errorMessage = 'Registration failed';
         if (result.details && Array.isArray(result.details)) {
-          errorMessage = `Validation failed: ${result.details.map(d => `${d.field}: ${d.message}`).join(', ')}`;
+          errorMessage = `Validation failed: ${result.details.map((d: { field: string; message: string }) => `${d.field}: ${d.message}`).join(', ')}`;
         } else if (result.error) {
           errorMessage = result.error;
         }
@@ -394,12 +434,13 @@ export default function SignUpPage() {
             )}
 
             {currentStep === "status" && (
-              <RegistrationStatus
+              <RegistrationStatusES
                 status={registrationState}
                 customerType={customerType}
                 error={error}
                 customerId={registrationResponse?.customerId}
                 kycStatus={registrationResponse?.kycStatus}
+                bridgeResponse={null}
                 onRetry={handleRetry}
                 onReset={handleReset}
               />

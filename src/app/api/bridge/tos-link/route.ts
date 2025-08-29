@@ -6,9 +6,8 @@ import { cookies } from "next/headers";
 export async function POST(request: NextRequest) {
   try {
     // Authenticate the user
-    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ 
-      cookies: () => cookieStore 
+      cookies 
     });
     const {
       data: { session },

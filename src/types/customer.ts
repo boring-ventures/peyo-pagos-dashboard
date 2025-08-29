@@ -1,5 +1,6 @@
 import { z } from "zod";
-import type { CustomerType, DocumentType, AccountPurpose, EmploymentStatus, ExpectedMonthlyPaymentsUSD, SourceOfFunds } from "@prisma/client";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import type { CustomerType, DocumentType, AccountPurpose, EmploymentStatus, ExpectedMonthlyPaymentsUSD, SourceOfFunds, KYCStatus } from "@prisma/client";
 
 // Base address schema
 export const addressSchema = z.object({
@@ -262,9 +263,10 @@ export interface RegistrationResponse {
   success: boolean;
   customerId?: string;
   profileId?: string;
-  kycStatus?: string;
+  kycStatus?: KYCStatus;
   error?: string;
   details?: string;
+  bridgeResponse?: unknown; // Raw Bridge API response for detailed error display
 }
 
 // Validation error types

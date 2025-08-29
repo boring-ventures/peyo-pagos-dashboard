@@ -62,7 +62,8 @@ class PerformanceMonitor {
     );
 
     const totalRequests = this.requestLogs.length;
-    const successfulRequests = this.requestLogs.filter((log) => log.success);
+    // Calculate successful requests for potential future use
+    // const successfulRequests = this.requestLogs.filter((log) => log.success);
     const responseTimes = this.requestLogs
       .filter((log) => log.responseTime)
       .map((log) => log.responseTime!);
@@ -82,6 +83,7 @@ class PerformanceMonitor {
 
     try {
       if (typeof window !== "undefined") {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const { getUserStoreSnapshot, isStoreAvailable } = require("@/store/userStore");
         if (isStoreAvailable()) {
           const stats = getUserStoreSnapshot().getCacheStats();

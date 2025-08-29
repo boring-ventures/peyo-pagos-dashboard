@@ -177,7 +177,14 @@ export function BusinessRegistrationForm({ onBack, onComplete, initialData, clas
       });
 
       if (onComplete) {
-        onComplete(data, uploadedFiles);
+        // Convert Map<string, File[]> to Map<string, File> by taking the first file from each array
+        const singleFileMap = new Map<string, File>();
+        uploadedFiles.forEach((files, key) => {
+          if (files.length > 0) {
+            singleFileMap.set(key, files[0]);
+          }
+        });
+        onComplete(data, singleFileMap);
       } else {
         router.push(`/sign-up/success?customerId=${result.customerId}&type=business`);
       }

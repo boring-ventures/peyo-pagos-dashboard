@@ -199,7 +199,7 @@ export function DocumentUpload({
         try {
           const processed = await processUploadedFile(file, fileIndex);
           processedFiles.push(processed);
-        } catch (error) {
+        } catch {
           // Error already handled in processUploadedFile
           continue;
         }
@@ -240,26 +240,26 @@ export function DocumentUpload({
 
     try {
       await processUploadedFile(fileWithStatus.file, index);
-    } catch (error) {
+    } catch {
       // Error already handled in processUploadedFile
     }
   }, [files, disabled, processUploadedFile]);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    const droppedFiles = dragDropUtils.handleDrop(e);
+  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    const droppedFiles = dragDropUtils.handleDrop(e.nativeEvent);
     if (droppedFiles.length > 0) {
       handleFileSelection(droppedFiles);
     }
     setIsDragOver(false);
   }, [handleFileSelection]);
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    dragDropUtils.handleDragOver(e);
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    dragDropUtils.handleDragOver(e.nativeEvent);
     setIsDragOver(true);
   }, []);
 
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    dragDropUtils.handleDragLeave(e);
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    dragDropUtils.handleDragLeave(e.nativeEvent);
     setIsDragOver(false);
   }, []);
 

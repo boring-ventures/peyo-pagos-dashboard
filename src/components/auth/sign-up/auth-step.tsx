@@ -36,7 +36,7 @@ const authSchema = z.object({
 type AuthFormData = z.infer<typeof authSchema>;
 
 interface AuthStepProps {
-  onComplete: (authData: { email: string; password: string; supabaseUser: any }) => void;
+  onComplete: (authData: { email: string; password: string; supabaseUser: unknown }) => void;
 }
 
 // Password strength calculation
@@ -172,11 +172,11 @@ export function AuthStep({ onComplete }: AuthStepProps) {
         });
       }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating user:', error);
       toast({
         title: "Error al crear cuenta",
-        description: error.message || "No se pudo crear tu cuenta. Inténtalo de nuevo.",
+        description: (error as Error)?.message || "No se pudo crear tu cuenta. Inténtalo de nuevo.",
         variant: "destructive",
       });
     } finally {

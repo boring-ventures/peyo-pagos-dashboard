@@ -64,7 +64,7 @@ export async function middleware(req: NextRequest) {
         redirectUrl.pathname = "/sign-up";
         return NextResponse.redirect(redirectUrl);
       }
-    } catch (error) {
+    } catch {
       console.log("User profile not found, allowing sign-up flow");
       // Profile doesn't exist, let them go to sign-up
       if (!req.nextUrl.pathname.startsWith("/sign-up")) {

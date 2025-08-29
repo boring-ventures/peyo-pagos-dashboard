@@ -7,7 +7,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Calendar, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface DatePickerProps {
@@ -29,7 +29,7 @@ export const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
     disabled = false,
     maxDate = new Date(),
     minDate = new Date(1900, 0, 1)
-  }, _ref) => {
+  }) => {
     const [isOpen, setIsOpen] = React.useState(false);
     const [selectedDate, setSelectedDate] = React.useState<Date | null>(
       value ? new Date(value) : null
@@ -91,21 +91,22 @@ export const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
 
     const days = getDaysInMonth(viewDate);
 
-    const navigateMonth = (direction: 'prev' | 'next') => {
-      setViewDate(prev => {
-        const newDate = new Date(prev);
-        newDate.setMonth(prev.getMonth() + (direction === 'next' ? 1 : -1));
-        return newDate;
-      });
-    };
+    // Navigation functions (currently unused but may be needed for future enhancements)
+    // const navigateMonth = (direction: 'prev' | 'next') => {
+    //   setViewDate(prev => {
+    //     const newDate = new Date(prev);
+    //     newDate.setMonth(prev.getMonth() + (direction === 'next' ? 1 : -1));
+    //     return newDate;
+    //   });
+    // };
 
-    const navigateYear = (direction: 'prev' | 'next') => {
-      setViewDate(prev => {
-        const newDate = new Date(prev);
-        newDate.setFullYear(prev.getFullYear() + (direction === 'next' ? 1 : -1));
-        return newDate;
-      });
-    };
+    // const navigateYear = (direction: 'prev' | 'next') => {
+    //   setViewDate(prev => {
+    //     const newDate = new Date(prev);
+    //     newDate.setFullYear(prev.getFullYear() + (direction === 'next' ? 1 : -1));
+    //     return newDate;
+    //   });
+    // };
 
     const handleYearSelect = (year: number) => {
       setViewDate(prev => {

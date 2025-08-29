@@ -18,9 +18,10 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
             refetchOnMount: false,           // ❌ Usar cache disponible al montar
             
             // Configuración de reintentos inteligente
-            retry: (failureCount, error: any) => {
+            retry: (failureCount: number, error: Error) => {
               // No reintentar errores de autenticación/autorización
-              if (error?.status === 401 || error?.status === 403) {
+              const errorWithStatus = error as Error & { status?: number };
+              if (errorWithStatus?.status === 401 || errorWithStatus?.status === 403) {
                 return false;
               }
               // Solo 2 reintentos para otros errores
@@ -33,9 +34,10 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
           },
           mutations: {
             // Configuración de reintentos para mutations
-            retry: (failureCount, error: any) => {
-              // No reintentar errores 4xx (client errors)
-              if (error?.status >= 400 && error?.status < 500) {
+            retry: (failureCount: number, error: Error) => {
+              // No reintentar errores 4xx (client errors)  
+              const errorWithStatus = error as Error & { status?: number };
+              if (errorWithStatus?.status && errorWithStatus.status >= 400 && errorWithStatus.status < 500) {
                 return false;
               }
               // Solo 1 reintento para mutations

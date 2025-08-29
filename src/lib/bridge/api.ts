@@ -8,6 +8,7 @@ import type {
   BridgeClientConfig,
   BridgeRequestOptions,
 } from '@/types/bridge';
+import type { KYCStatus, CapabilityStatus } from '@prisma/client';
 
 /**
  * Bridge.xyz API Client
@@ -35,6 +36,9 @@ export class BridgeApiClient {
       email: customerData.email,
       idempotencyKey,
     });
+
+    // Log the full Bridge request data for debugging
+    console.log('📋 Bridge Request Data:', JSON.stringify(customerData, null, 2));
 
     return this.makeRequest({
       method: 'POST',
@@ -132,7 +136,7 @@ export class BridgeApiClient {
   /**
    * Make HTTP request to Bridge API with retry logic
    */
-  private async makeRequest<T = any>(options: BridgeRequestOptions): Promise<BridgeApiResponse<T>> {
+  private async makeRequest<T = unknown>(options: BridgeRequestOptions): Promise<BridgeApiResponse<T>> {
     const { method, endpoint, data, idempotencyKey, headers = {} } = options;
     const url = `${this.config.baseUrl}${endpoint}`;
 
@@ -191,12 +195,30 @@ export class BridgeApiClient {
         if (!response.ok) {
           const errorResponse: BridgeErrorResponse = {
             error: 'Bridge API Error',
-            message: (responseData as any)?.message || `HTTP ${response.status}`,
+            message: (responseData as { message?: string })?.message || `HTTP ${response.status}`,
             status_code: response.status,
             details: responseData,
           };
 
           console.error(`❌ Bridge API Error (${response.status}):`, errorResponse);
+          
+          // Log detailed validation errors if available
+          if (errorResponse.details) {
+            console.error('🔍 Bridge API Error Details:', JSON.stringify(errorResponse.details, null, 2));
+            
+            // Specifically log the key object if it exists
+            if (errorResponse.details && typeof errorResponse.details === 'object' && 'source' in errorResponse.details) {
+              const source = (errorResponse.details as { source?: unknown }).source;
+              if (source && typeof source === 'object' && 'key' in source) {
+                const sourceWithKey = source as { key?: unknown };
+                console.error('🔑 Bridge API Key Object:', JSON.stringify(sourceWithKey.key, null, 2));
+                console.error('🔑 Bridge API Key Object Type:', typeof sourceWithKey.key);
+                if (sourceWithKey.key && typeof sourceWithKey.key === 'object') {
+                  console.error('🔑 Bridge API Key Object Keys:', Object.keys(sourceWithKey.key));
+                }
+              }
+            }
+          }
 
           // Don't retry client errors (4xx), but do retry server errors (5xx)
           if (response.status >= 400 && response.status < 500) {
@@ -363,7 +385,7 @@ export const bridgeUtils = {
   /**
    * Map Bridge status to internal KYC status
    */
-  mapBridgeStatusToKycStatus(bridgeStatus: string): string {
+  mapBridgeStatusToKycStatus(bridgeStatus: string): KYCStatus {
     const statusMapping: Record<string, string> = {
       'pending': 'under_review',
       'active': 'active',
@@ -378,7 +400,61 @@ export const bridgeUtils = {
       'offboarded': 'offboarded',
     };
 
-    return statusMapping[bridgeStatus] || 'not_started';
+    return (statusMapping[bridgeStatus] || 'not_started') as KYCStatus;
+  },
+
+  /**
+   * Map Bridge capability status to Prisma enum
+   */
+  mapCapabilityStatus(capabilityStatus: string | null | undefined): CapabilityStatus | null {
+    if (!capabilityStatus) return null;
+    
+    const statusMapping: Record<string, CapabilityStatus> = {
+      'pending': 'pending',
+      'active': 'active',
+      'inactive': 'inactive',
+      'rejected': 'rejected',
+    };
+
+    return statusMapping[capabilityStatus] || null;
+  },
+
+  /**
+   * Map Bridge expected monthly payments to Prisma enum
+   */
+  mapExpectedMonthlyPaymentsToPrisma(bridgeValue: string | undefined): 'zero_4999' | 'five_thousand_9999' | 'ten_thousand_49999' | 'fifty_thousand_plus' | null {
+    if (!bridgeValue) {
+      console.log(`💰 No expected monthly payments value provided, using null`);
+      return null;
+    }
+
+    const paymentMapping: Record<string, 'zero_4999' | 'five_thousand_9999' | 'ten_thousand_49999' | 'fifty_thousand_plus'> = {
+      '0_4999': 'zero_4999',
+      '5000_9999': 'five_thousand_9999', 
+      '10000_49999': 'ten_thousand_49999',
+      '50000_plus': 'fifty_thousand_plus',
+    };
+
+    const mappedValue = paymentMapping[bridgeValue];
+    console.log(`💰 Mapping expected monthly payments: ${bridgeValue} → ${mappedValue || 'null (unknown value)'}`);
+    
+    return mappedValue || null;
+  },
+
+  /**
+   * Map Prisma expected monthly payments to Bridge format
+   */
+  mapExpectedMonthlyPaymentsToBridge(prismaValue: string | undefined): string | undefined {
+    if (!prismaValue) return undefined;
+    
+    const reverseMapping: Record<string, string> = {
+      'zero_4999': '0_4999',
+      'five_thousand_9999': '5000_9999',
+      'ten_thousand_49999': '10000_49999',
+      'fifty_thousand_plus': '50000_plus',
+    };
+    
+    return reverseMapping[prismaValue] || prismaValue;
   },
 
   /**
@@ -414,17 +490,17 @@ export const bridgeUtils = {
       email: bridgeResponse.email,
       kycApprovedAt: this.isApprovedStatus(bridgeResponse.status) ? new Date(bridgeResponse.updated_at) : null,
       kycRejectedAt: this.isRejectedStatus(bridgeResponse.status) ? new Date(bridgeResponse.updated_at) : null,
-      payinCrypto: bridgeResponse.capabilities?.payin_crypto || null,
-      payoutCrypto: bridgeResponse.capabilities?.payout_crypto || null,
-      payinFiat: bridgeResponse.capabilities?.payin_fiat || null,
-      payoutFiat: bridgeResponse.capabilities?.payout_fiat || null,
+      payinCrypto: this.mapCapabilityStatus(bridgeResponse.capabilities?.payin_crypto),
+      payoutCrypto: this.mapCapabilityStatus(bridgeResponse.capabilities?.payout_crypto),
+      payinFiat: this.mapCapabilityStatus(bridgeResponse.capabilities?.payin_fiat),
+      payoutFiat: this.mapCapabilityStatus(bridgeResponse.capabilities?.payout_fiat),
       requirementsDue: bridgeResponse.requirements_due || [],
       futureRequirementsDue: bridgeResponse.future_requirements_due || [],
       hasAcceptedTermsOfService: bridgeResponse.has_accepted_terms_of_service || false,
-      bridgeRawResponse: bridgeResponse,
+      bridgeRawResponse: JSON.parse(JSON.stringify(bridgeResponse)),
     };
   }
-};
+};;;
 
 // Export types for convenience
 export type { BridgeCustomerRequest, BridgeCustomerResponse, BridgeApiResponse };

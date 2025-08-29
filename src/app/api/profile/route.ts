@@ -6,9 +6,8 @@ import prisma from "@/lib/prisma";
 // GET: Fetch profile for the current authenticated user
 export async function GET() {
   try {
-    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ 
-      cookies: () => cookieStore 
+      cookies 
     });
 
     // Get the current user's session
@@ -52,9 +51,8 @@ export async function GET() {
 // PUT: Update profile for the current authenticated user
 export async function PUT(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ 
-      cookies: () => cookieStore 
+      cookies 
     });
 
     // Get the current user's session
@@ -127,9 +125,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Normal flow requiring authentication
-    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ 
-      cookies: () => cookieStore 
+      cookies 
     });
 
     // Get the current user's session

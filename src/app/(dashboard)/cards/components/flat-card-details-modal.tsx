@@ -23,22 +23,15 @@ import {
   Shield,
   TrendingUp,
   Activity,
-  AlertCircle,
   CheckCircle,
   XCircle,
   Loader2,
   Ban,
   Wallet,
-  Building,
-  Gift,
-  RotateCcw,
-  MoreHorizontal,
 } from "lucide-react";
 import {
   FlatCardWithDetails,
-  CardBalanceAddition,
   BalanceAdditionStatus,
-  BalanceAdditionSource,
 } from "@/types/card";
 import { format } from "date-fns";
 import { toast } from "@/components/ui/use-toast";

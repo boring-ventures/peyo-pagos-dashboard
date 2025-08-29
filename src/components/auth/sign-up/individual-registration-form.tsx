@@ -29,7 +29,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { DatePicker } from "@/components/ui/date-picker";
-import { CountrySelect, COUNTRIES } from "@/components/ui/country-select";
+import { CountrySelect } from "@/components/ui/country-select";
 import { 
   ArrowRight, 
   ArrowLeft, 
@@ -42,7 +42,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { DocumentUpload, type ProcessedFile } from "./document-upload";
+// import { type ProcessedFile } from "./document-upload"; // Currently not used
 import { 
   individualRegistrationSchema, 
   type IndividualRegistrationData
@@ -92,7 +92,7 @@ const FORM_STEPS: FormStep[] = [
     title: "Documentos de Identidad",
     description: "Subir documentos de identificación",
     icon: FileText,
-    fields: ["identifyingInformation.0.type", "identifyingInformation.0.imageFront"],
+    fields: ["identifyingInformation"],
   },
   {
     id: 5,
@@ -115,7 +115,8 @@ export function IndividualRegistrationForm({ onBack, onComplete, initialData, cl
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<Map<string, File[]>>(new Map());
-  const [, setProcessedFiles] = useState<Map<string, ProcessedFile[]>>(new Map());
+  // Processed files state - currently not used but may be needed for future enhancements
+  // const [_processedFiles] = useState<Map<string, ProcessedFile[]>>(new Map());
   const [tosLoading, setTosLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [dataLoaded, setDataLoaded] = useState(false);
@@ -236,6 +237,7 @@ export function IndividualRegistrationForm({ onBack, onComplete, initialData, cl
       window.removeEventListener('beforeunload', handleBeforeUnload);
       // Don't reset form on unmount - let data persist
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Auto-populate address country from nationality selection
@@ -276,7 +278,7 @@ export function IndividualRegistrationForm({ onBack, onComplete, initialData, cl
                 for (const [key, fileArray] of Object.entries(draft.files)) {
                   if (Array.isArray(fileArray) && fileArray.length > 0) {
                     // Create placeholder File objects for validation purposes
-                    const placeholderFiles: File[] = fileArray.map((fileData: any, index: number) => {
+                    const placeholderFiles: File[] = fileArray.map((fileData: { name: string; type?: string }, index: number) => {
                       const fileName = fileData?.name || `document_${index}`;
                       return new File([''], fileName, { type: fileData?.type || 'image/jpeg' });
                     });
@@ -309,7 +311,6 @@ export function IndividualRegistrationForm({ onBack, onComplete, initialData, cl
             console.log('Loading saved form data:', formData);
             
             // Restore all form values in batch
-            const updates: Array<Promise<any>> = [];
             
             // First set customerType if it exists
             if (formData.customerType) {
@@ -325,7 +326,7 @@ export function IndividualRegistrationForm({ onBack, onComplete, initialData, cl
                   Object.keys(value).forEach(subKey => {
                     const subValue = value[subKey];
                     if (subValue !== undefined && subValue !== null) {
-                      updates.push(setValue(`${key}.${subKey}` as any, subValue, { shouldValidate: false }));
+                      setValue(`${key}.${subKey}` as keyof IndividualRegistrationData, subValue, { shouldValidate: false });
                     }
                   });
                 } 
@@ -333,18 +334,17 @@ export function IndividualRegistrationForm({ onBack, onComplete, initialData, cl
                 else if (Array.isArray(value)) {
                   // Set the entire array at once if it's not empty
                   if (value.length > 0) {
-                    updates.push(setValue(key as any, value, { shouldValidate: false }));
+                    setValue(key as keyof IndividualRegistrationData, value, { shouldValidate: false });
                   }
                 }
                 // Handle simple values
                 else {
-                  updates.push(setValue(key as any, value, { shouldValidate: false }));
+                  setValue(key as keyof IndividualRegistrationData, value, { shouldValidate: false });
                 }
               }
             });
             
-            // Wait for all updates to complete
-            await Promise.all(updates);
+            // All setValue calls are complete
             
             // Check if ToS was previously accepted
             if (formData.tosAccepted && formData.tosSignedAgreementId) {
@@ -381,7 +381,7 @@ export function IndividualRegistrationForm({ onBack, onComplete, initialData, cl
               
               // Override the restored data with current session data
               setValue("tosAccepted", true, { shouldValidate: true, shouldDirty: true });
-              setValue("tosSignedAgreementId", sessionAgreementId, { shouldValidate: true, shouldDirty: true });
+              setValue("tosSignedAgreementId", sessionAgreementId || "", { shouldValidate: true, shouldDirty: true });
               setValue("hasAcceptedTerms", true, { shouldValidate: true, shouldDirty: true });
               
               await form.trigger(['tosAccepted', 'tosSignedAgreementId', 'hasAcceptedTerms']);
@@ -701,7 +701,14 @@ export function IndividualRegistrationForm({ onBack, onComplete, initialData, cl
       if (onComplete) {
         // Clear saved form data on successful completion
         localStorage.removeItem('individual-registration-form-data');
-        onComplete(data, uploadedFiles);
+        // Convert Map<string, File[]> to Map<string, File> by taking the first file from each array
+        const singleFileMap = new Map<string, File>();
+        uploadedFiles.forEach((files, key) => {
+          if (files.length > 0) {
+            singleFileMap.set(key, files[0]);
+          }
+        });
+        onComplete(data, singleFileMap);
         return;
       }
 
@@ -1240,7 +1247,7 @@ export function IndividualRegistrationForm({ onBack, onComplete, initialData, cl
                                 });
 
                                 if (response.ok) {
-                                  const { fileName, publicUrl } = await response.json();
+                                  const { fileName } = await response.json();
                                   console.log('✅ File uploaded:', fileName);
                                   
                                   // Update uploadedFiles state
@@ -1313,7 +1320,7 @@ export function IndividualRegistrationForm({ onBack, onComplete, initialData, cl
                                 });
 
                                 if (response.ok) {
-                                  const { fileName, publicUrl } = await response.json();
+                                  const { fileName } = await response.json();
                                   console.log('✅ Back image uploaded:', fileName);
                                   
                                   // Update uploadedFiles state (append to existing)
@@ -1392,7 +1399,7 @@ export function IndividualRegistrationForm({ onBack, onComplete, initialData, cl
                                 });
 
                                 if (response.ok) {
-                                  const { fileName, publicUrl } = await response.json();
+                                  const { fileName } = await response.json();
                                   console.log('✅ Additional document uploaded:', fileName);
                                   
                                   // Update uploadedFiles state
@@ -1462,7 +1469,7 @@ export function IndividualRegistrationForm({ onBack, onComplete, initialData, cl
                 <div className="space-y-4">
                   <div className="p-4 bg-gray-50 rounded-lg">
                     <p className="text-sm text-gray-600 mb-2">
-                      Al hacer clic en "Acepto los Términos", serás dirigido a una ventana para revisar y aceptar
+                      Al hacer clic en &quot;Acepto los Términos&quot;, serás dirigido a una ventana para revisar y aceptar
                       los Términos de Servicio de Bridge. Este es un paso obligatorio para completar tu verificación KYC.
                     </p>
                     <p className="text-xs text-gray-500">
@@ -1500,13 +1507,13 @@ export function IndividualRegistrationForm({ onBack, onComplete, initialData, cl
                           // Open Bridge ToS page in the same window
                           window.location.href = url;
                           
-                        } catch (error: any) {
+                        } catch (error: unknown) {
                           console.error('ToS link generation error:', error);
                           setTosLoading(false);
                           
                           toast({
                             title: "Error",
-                            description: error.message || "Hubo un problema al generar el enlace de términos de servicio.",
+                            description: (error as Error)?.message || "Hubo un problema al generar el enlace de términos de servicio.",
                             variant: "destructive",
                           });
                         }
@@ -1545,7 +1552,7 @@ export function IndividualRegistrationForm({ onBack, onComplete, initialData, cl
                 key="tos-accepted"
                 control={form.control}
                 name="tosAccepted"
-                render={({ field }) => (
+                render={() => (
                   <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                     <FormControl>
                       <Checkbox
@@ -1631,9 +1638,9 @@ export function IndividualRegistrationForm({ onBack, onComplete, initialData, cl
           console.log('🔄 Updating form with ToS agreement ID from sessionStorage:', sessionAgreementId);
           
           // Update form values immediately
-          setValue("tosSignedAgreementId", sessionAgreementId, { shouldValidate: true, shouldDirty: true });
+          setValue("tosSignedAgreementId", sessionAgreementId || "", { shouldValidate: true, shouldDirty: true });
           setValue("tosAccepted", true, { shouldValidate: true, shouldDirty: true });
-          tosAgreementId = sessionAgreementId;
+          tosAgreementId = sessionAgreementId || "";
           
           // Re-get the current form data after update
           const updatedFormData = form.getValues();
